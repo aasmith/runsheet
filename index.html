@@ -978,6 +978,12 @@ const COPY = {
     savedFile: 'Saved {name}',
     openedFile: 'Opened {name}',
     badFile: "That file isn't a runsheet",
+    /* files from the older paints-and-parts tool are recognised and converted
+       on the way in — {parts} and {paints} are what came across */
+    openedLegacy: 'Converted {name} — {parts} parts, {paints} work types',
+    legacyDescription: 'Converted from a paints-and-parts file. Paints became work types; each part kept its sequence.',
+    legacyUnnamedPart: 'Part {n}',
+    legacyUnnamedWork: 'Work {n}',
 
     agoNever: 'never',
     agoNow: 'just now',
@@ -2580,20 +2586,78 @@ function saveFile(sheet) {
 }
 $('#btn-export').addEventListener('click', () => { persist(); saveFile(null); });
 $('#btn-import').addEventListener('click', () => $('#file-input').click());
+/* Two kinds of file open here: our own, and the paints-and-parts format from
+   the older tool. The keys say which is which, so there is nothing to choose. */
+const isLegacyFile = d => !!d && Array.isArray(d.paints) && Array.isArray(d.parts);
+const isNativeFile = d => !!d && (Array.isArray(d.items) || Array.isArray(d.works));
+
+function readNative(d, fallbackTitle) {
+  return {
+    title: (d.title || '').trim() || fallbackTitle,
+    description: d.description || '',
+    data: {
+      items: d.items || [], works: d.works || [], steps: d.steps || [],
+      routes: d.routes || {}, progress: d.progress || {}, ledger: d.ledger || [],
+      priority: d.priority || []
+    }
+  };
+}
+
+/* A paint becomes a work type; a part becomes an item whose route is its
+   sequence of paint ids. There are no steps or progress in that format. */
+function readLegacy(d, fallbackTitle) {
+  const works = [], workByPaintId = new Map();
+  d.paints.forEach((p, i) => {
+    if (!p || typeof p !== 'object') return;
+    const name = String(p.name == null ? '' : p.name).trim() ||
+      t(COPY.library.legacyUnnamedWork, { n: i + 1 });
+    const w = { id: uid('wk'), name: name };
+    works.push(w);
+    if (p.id !== undefined && !workByPaintId.has(String(p.id))) workByPaintId.set(String(p.id), w.id);
+  });
+
+  const items = [], routes = {};
+  d.parts.forEach((p, i) => {
+    if (!p || typeof p !== 'object') return;
+    const code = String(p.name == null ? '' : p.name).trim() ||
+      t(COPY.library.legacyUnnamedPart, { n: i + 1 });
+    const it = { id: uid('it'), code: code, name: '' };
+    items.push(it);
+    routes[it.id] = (Array.isArray(p.sequence) ? p.sequence : [])
+      .map(x => workByPaintId.get(String(x)))
+      .filter(Boolean);
+  });
+
+  return {
+    title: String(d.title == null ? '' : d.title).trim() || fallbackTitle,
+    description: COPY.library.legacyDescription,
+    legacy: true,
+    counts: { parts: items.length, paints: works.length },
+    data: {
+      items: items, works: works, steps: [],
+      routes: routes, progress: {}, ledger: [], priority: []
+    }
+  };
+}
+
 $('#file-input').addEventListener('change', e => {
   const f = e.target.files[0];
   if (!f) return;
   const fr = new FileReader();
   fr.onload = () => {
-    try {
-      const d = JSON.parse(fr.result);
-      newSheet(d.title || f.name.replace(/\.json$/i, ''), d.description || '', {
-        items: d.items || [], works: d.works || [], steps: d.steps || [],
-        routes: d.routes || {}, progress: d.progress || {}, ledger: d.ledger || [],
-        priority: d.priority || []
-      });
-      toast(t(COPY.library.openedFile, { name: f.name }));
-    } catch (err) { toast(COPY.library.badFile); }
+    let d = null;
+    try { d = JSON.parse(fr.result); } catch (err) { d = null; }
+    const fallback = f.name.replace(/\.json$/i, '');
+    const read = isLegacyFile(d) ? readLegacy(d, fallback)
+               : isNativeFile(d) ? readNative(d, fallback)
+               : null;
+    if (!read) { toast(COPY.library.badFile); return; }
+    newSheet(read.title, read.description, read.data);
+    toast(read.legacy
+      ? t(COPY.library.openedLegacy, {
+          name: f.name, parts: read.counts.parts, paints: read.counts.paints
+        })
+      : t(COPY.library.openedFile, { name: f.name }));
   };
   fr.readAsText(f);
   e.target.value = '';
