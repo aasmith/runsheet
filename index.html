@@ -475,6 +475,26 @@ td.mx__cell{width:62px;background:var(--white)}
 .tag--finished:hover .tag__next{color:var(--stop)}
 .metahint{cursor:help;border-bottom:1px dotted var(--rule-2)}
 .metahint:hover{border-bottom-color:var(--ink-2);color:var(--ink)}
+.modal{
+  position:fixed;inset:0;z-index:95;display:flex;align-items:center;justify-content:center;
+  background:rgba(20,24,27,.5);padding:22px;
+}
+.modal[hidden]{display:none}
+.modal__card{
+  background:var(--panel);border:1.5px solid var(--ink);border-radius:3px;
+  box-shadow:6px 6px 0 rgba(20,24,27,.22);width:min(680px,100%);max-height:86vh;
+  display:flex;flex-direction:column;
+}
+.modal__head{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--rule)}
+.modal__head h2{margin:0;font-size:14px;font-weight:700;letter-spacing:-.01em}
+.modal__foot{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:11px 14px;border-top:1px solid var(--rule)}
+.modal__foot .hint{margin:0;max-width:44ch}
+.jsonarea{
+  flex:1;min-height:200px;height:44vh;resize:none;margin:0;border:0;border-radius:0;
+  background:var(--white);padding:12px 14px;
+  font-family:var(--mono);font-size:11.5px;line-height:1.5;color:var(--ink);
+}
+.jsonarea:focus{outline:none;background:#FFF}
 .tip{
   position:fixed;left:0;top:0;z-index:90;max-width:290px;
   background:var(--ink);color:var(--panel);border-radius:3px;
@@ -601,7 +621,9 @@ details.fold > summary:hover{color:var(--ink)}
   </div>
   <div class="topbar__tools" id="tools">
     <button class="btn btn--ghost btn--sm" id="btn-export" data-copy="chrome.saveFile"></button>
+    <button class="btn btn--ghost btn--sm" id="btn-copy-json" data-copy="json.buttonCopy"></button>
     <button class="btn btn--ghost btn--sm" id="btn-import" data-copy="chrome.openFile"></button>
+    <button class="btn btn--ghost btn--sm" id="btn-paste-json" data-copy="json.buttonPaste"></button>
   </div>
   <div class="libbar" id="libbar">
     <button class="btn btn--sm" id="btn-back"><span aria-hidden="true">↩</span> <span data-copy="chrome.backTo"></span> <span id="back-title"></span></button>
@@ -681,6 +703,23 @@ details.fold > summary:hover{color:var(--ink)}
     <div id="run-body"></div>
   </section>
 </main>
+
+<div class="modal" id="jsonbox" hidden>
+  <div class="modal__card" role="dialog" aria-modal="true" aria-labelledby="json-title">
+    <div class="modal__head">
+      <h2 id="json-title"></h2>
+      <span class="row__spacer"></span>
+      <button class="icon-btn" id="json-close" aria-label="Close">✕</button>
+    </div>
+    <textarea id="json-text" class="jsonarea" spellcheck="false" autocomplete="off"></textarea>
+    <div class="modal__foot">
+      <span class="hint" id="json-hint"></span>
+      <span class="row__spacer"></span>
+      <button class="btn btn--ghost btn--sm" id="json-dismiss"></button>
+      <button class="btn btn--solid btn--sm" id="json-action"></button>
+    </div>
+  </div>
+</div>
 
 <div class="tip" id="tip" role="tooltip"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -984,6 +1023,7 @@ const COPY = {
     savedFile: 'Saved {name}',
     openedFile: 'Opened {name}',
     badFile: "That file isn't a runsheet",
+    emptyFile: 'Nothing to open in {name} — no items or work types in it',
     /* files from the older paints-and-parts tool are recognised and converted
        on the way in — {parts} and {paints} are what came across */
     openedLegacy: 'Converted {name} — {parts} parts, {paints} work types',
@@ -996,6 +1036,23 @@ const COPY = {
     agoMinutes: '{n} min ago',
     agoHours: '{n} hr ago',
     agoDays: '{n} days ago'
+  },
+
+  /* --- the JSON box, for moving a runsheet by copy and paste ------------- */
+  json: {
+    buttonCopy: 'Copy JSON',
+    buttonPaste: 'Paste JSON',
+    copyTitle: 'Copy this runsheet as JSON',
+    copyHint: 'The whole sheet — items, routes and ticked-off work.',
+    copyAction: 'Copy to clipboard',
+    copied: 'Copied',
+    copyManual: 'Copy it from the box yourself — this browser blocked the clipboard',
+    pasteTitle: 'Paste a runsheet',
+    pasteHint: 'From this tool or from a paints-and-parts file. It opens as a new runsheet.',
+    pastePlaceholder: 'Paste JSON here…',
+    pasteAction: 'Open as a new runsheet',
+    pasteEmpty: 'Paste something into the box first',
+    close: 'Close'
   },
 
   /* --- pasting lists ----------------------------------------------------- */
@@ -2218,7 +2275,8 @@ function renderSheets() {
   const starters =
     '<button class="btn btn--solid" data-new-sheet>' + esc(C.newSheet) + '</button>' +
     '<button class="btn btn--ghost" data-new-sample>' + esc(C.newFromSample) + '</button>' +
-    '<button class="btn btn--ghost" id="btn-import-2">' + esc(C.openFile) + '</button>';
+    '<button class="btn btn--ghost" id="btn-import-2">' + esc(C.openFile) + '</button>' +
+    '<button class="btn btn--ghost" data-paste-json>' + esc(COPY.json.buttonPaste) + '</button>';
 
   if (bare) {
     h += '<div class="firstrun">' +
@@ -2265,6 +2323,7 @@ function renderSheets() {
         '<span class="linkrow">' +
           '<button class="linkbtn" data-dupe-sheet="' + s.id + '">' + esc(C.cardDuplicate) + '</button>' +
           '<button class="linkbtn" data-save-sheet="' + s.id + '">' + esc(C.cardSaveFile) + '</button>' +
+          '<button class="linkbtn" data-copy-sheet="' + s.id + '">' + esc(COPY.json.buttonCopy) + '</button>' +
           '<button class="linkbtn linkbtn--del" data-del-sheet="' + s.id + '">' + esc(C.cardDelete) + '</button>' +
         '</span>' +
       '</div>' +
@@ -2621,14 +2680,18 @@ $('#view-run').addEventListener('toggle', e => {
 
 /* -- file + sample -- */
 const slug = s => (s || 'runsheet').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'runsheet';
-function saveFile(sheet) {
+function sheetJSON(sheet) {
   const src = sheet || { title: state.title, description: state.description, data: sheetData() };
   const d = src.data;
-  const blob = new Blob([JSON.stringify({
+  return JSON.stringify({
     v: 2, title: src.title, description: src.description,
     items: d.items, works: d.works, steps: d.steps,
     routes: d.routes, progress: d.progress, ledger: d.ledger, priority: d.priority
-  }, null, 2)], { type: 'application/json' });
+  }, null, 2);
+}
+function saveFile(sheet) {
+  const src = sheet || { title: state.title, description: state.description, data: sheetData() };
+  const blob = new Blob([sheetJSON(sheet)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = slug(src.title) + '.json';
@@ -2636,12 +2699,85 @@ function saveFile(sheet) {
   URL.revokeObjectURL(a.href);
   toast(t(COPY.library.savedFile, { name: a.download }));
 }
+/* ---- the JSON box: the same save and open, by copy and paste ---- */
+let jsonMode = null;
+function openJsonBox(mode, sheet) {
+  const C = COPY.json;
+  jsonMode = mode;
+  const box = $('#jsonbox'), area = $('#json-text');
+  $('#json-title').textContent = mode === 'copy' ? C.copyTitle : C.pasteTitle;
+  $('#json-hint').textContent = mode === 'copy' ? C.copyHint : C.pasteHint;
+  $('#json-action').textContent = mode === 'copy' ? C.copyAction : C.pasteAction;
+  $('#json-dismiss').textContent = C.close;
+  area.readOnly = mode === 'copy';
+  area.placeholder = mode === 'copy' ? '' : C.pastePlaceholder;
+  if (mode === 'copy') { persist(); area.value = sheetJSON(sheet || null); }
+  else area.value = '';
+  box.hidden = false;
+  area.focus();
+  if (mode === 'copy') {
+    area.setSelectionRange(0, area.value.length);
+    area.scrollTop = 0;   /* selecting scrolls to the end; show the top */
+  }
+}
+function closeJsonBox() {
+  $('#jsonbox').hidden = true;
+  jsonMode = null;
+}
+function copyJsonOut() {
+  const area = $('#json-text');
+  area.select();
+  const done = () => {
+    const btn = $('#json-action');
+    btn.textContent = COPY.json.copied;
+    setTimeout(() => { if (jsonMode === 'copy') btn.textContent = COPY.json.copyAction; }, 1400);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(area.value).then(done, () => toast(COPY.json.copyManual));
+    return;
+  }
+  try {
+    if (document.execCommand('copy')) done(); else toast(COPY.json.copyManual);
+  } catch (err) { toast(COPY.json.copyManual); }
+}
+function openJsonIn() {
+  const raw = $('#json-text').value.trim();
+  if (!raw) { toast(COPY.json.pasteEmpty); return; }
+  const read = readAnyFormat(raw, COPY.chrome.untitledSheet);
+  const label = (read && read.title) || COPY.chrome.untitledSheet;
+  if (acceptRead(read, label)) closeJsonBox();
+}
+$('#btn-copy-json').addEventListener('click', () => openJsonBox('copy', null));
+$('#btn-paste-json').addEventListener('click', () => openJsonBox('paste'));
+$('#json-close').addEventListener('click', closeJsonBox);
+$('#json-dismiss').addEventListener('click', closeJsonBox);
+$('#json-action').addEventListener('click', () => {
+  if (jsonMode === 'copy') copyJsonOut(); else openJsonIn();
+});
+$('#jsonbox').addEventListener('click', e => { if (e.target.id === 'jsonbox') closeJsonBox(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !$('#jsonbox').hidden) closeJsonBox();
+});
+
 $('#btn-export').addEventListener('click', () => { persist(); saveFile(null); });
 $('#btn-import').addEventListener('click', () => $('#file-input').click());
 /* Two kinds of file open here: our own, and the paints-and-parts format from
    the older tool. The keys say which is which, so there is nothing to choose. */
 const isLegacyFile = d => !!d && Array.isArray(d.paints) && Array.isArray(d.parts);
 const isNativeFile = d => !!d && (Array.isArray(d.items) || Array.isArray(d.works));
+
+/* Some exports wrap the whole thing in an outer object, so look one level in
+   before giving up. */
+function findPayload(d) {
+  if (isLegacyFile(d) || isNativeFile(d)) return d;
+  if (d && typeof d === 'object') {
+    const nested = Object.keys(d)
+      .map(k => d[k])
+      .filter(v => isLegacyFile(v) || isNativeFile(v))[0];
+    if (nested) return nested;
+  }
+  return null;
+}
 
 function readNative(d, fallbackTitle) {
   return {
@@ -2692,25 +2828,48 @@ function readLegacy(d, fallbackTitle) {
   };
 }
 
+/* Text in, runsheet out — used by the file picker and by the JSON box alike,
+   so a pasted sheet is read exactly as a dropped file would be. */
+function readAnyFormat(text, fallbackTitle) {
+  let d = null;
+  try {
+    /* editors and export tools leave byte-order marks and stray whitespace
+       at the front of a file; JSON.parse will not have them, so start at the
+       first character that could open a JSON document */
+    const txt = String(text || '');
+    const from = txt.search(/[[{]/);
+    d = JSON.parse(from > 0 ? txt.slice(from) : txt);
+  } catch (err) { return null; }
+  const payload = findPayload(d);
+  if (!payload) return null;
+  return isLegacyFile(payload) ? readLegacy(payload, fallbackTitle)
+                               : readNative(payload, fallbackTitle);
+}
+
+/* Opens what was read, or says why it did not. {label} is whatever the person
+   would recognise it by: a file name, or the sheet's own title. */
+function acceptRead(read, label) {
+  if (!read) { toast(COPY.library.badFile); return false; }
+  /* never hand back an empty runsheet and leave the person wondering what
+     happened to their file */
+  if (!read.data.items.length && !read.data.works.length) {
+    toast(t(COPY.library.emptyFile, { name: label }));
+    return false;
+  }
+  newSheet(read.title, read.description, read.data);
+  toast(read.legacy
+    ? t(COPY.library.openedLegacy, {
+        name: label, parts: read.counts.parts, paints: read.counts.paints
+      })
+    : t(COPY.library.openedFile, { name: label }));
+  return true;
+}
+
 $('#file-input').addEventListener('change', e => {
   const f = e.target.files[0];
   if (!f) return;
   const fr = new FileReader();
-  fr.onload = () => {
-    let d = null;
-    try { d = JSON.parse(fr.result); } catch (err) { d = null; }
-    const fallback = f.name.replace(/\.json$/i, '');
-    const read = isLegacyFile(d) ? readLegacy(d, fallback)
-               : isNativeFile(d) ? readNative(d, fallback)
-               : null;
-    if (!read) { toast(COPY.library.badFile); return; }
-    newSheet(read.title, read.description, read.data);
-    toast(read.legacy
-      ? t(COPY.library.openedLegacy, {
-          name: f.name, parts: read.counts.parts, paints: read.counts.paints
-        })
-      : t(COPY.library.openedFile, { name: f.name }));
-  };
+  fr.onload = () => acceptRead(readAnyFormat(fr.result, f.name.replace(/\.json$/i, '')), f.name);
   fr.readAsText(f);
   e.target.value = '';
 });
@@ -2787,6 +2946,12 @@ $('#view-sheets').addEventListener('click', e => {
     return;
   }
   if (t.id === 'btn-import-2') return $('#file-input').click();
+  if (t.closest('[data-paste-json]')) return openJsonBox('paste');
+  const cj = t.closest('[data-copy-sheet]');
+  if (cj) {
+    persist();
+    return openJsonBox('copy', store.sheets.filter(x => x.id === cj.dataset.copySheet)[0]);
+  }
   if (t.closest('[data-keep-sheet]')) { state.confirm = null; return renderSheets(); }
   const dd = t.closest('[data-do-del-sheet]');
   if (dd) return deleteSheet(dd.dataset.doDelSheet);
