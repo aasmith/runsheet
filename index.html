@@ -847,6 +847,12 @@ const COPY = {
     copyFromChoose: 'Choose an item…',
     copyFromOption: '{name} · {n} ops',
     copiedFrom: 'Copied the route from {name}',
+    /* an edit can push ticked-off work back behind an operation that has not
+       been done, which puts it on the list again */
+    reopened_one: '{n} ticked-off operation on {name} goes back on the list',
+    reopened_many: '{n} ticked-off operations on {name} go back on the list',
+    reopenedBulk_one: '{n} ticked-off operation goes back on the list',
+    reopenedBulk_many: '{n} ticked-off operations go back on the list',
     copiedTo_one: 'Route copied to {n} item',
     copiedTo_many: 'Route copied to {n} items',
 
@@ -1437,12 +1443,9 @@ function doDelete(kind, id) {
     state.ledger = state.ledger.filter(en => en.ops.length);
   } else if (kind === 'work') {
     state.works = state.works.filter(w => w.id !== id);
-    Object.keys(state.routes).forEach(k => {
-      const after = state.routes[k].filter(x => x !== id);
-      if (after.length !== state.routes[k].length) {
-        state.progress[k] = Math.min(state.progress[k] || 0, after.length);
-      }
-      state.routes[k] = after;
+    state.items.forEach(it => {
+      const after = routeOf(it.id).filter(x => x !== id);
+      if (after.length !== routeOf(it.id).length) setRoute(it.id, after);
     });
   } else {
     state.steps = state.steps.filter(s => s.id !== id);
@@ -1711,9 +1714,58 @@ function paletteHTML(route) {
     '</button>').join('');
 }
 
-/* keeps an item's ticked-off count inside its route after an edit */
-function fitProgress(id) {
-  state.progress[id] = Math.min(state.progress[id] || 0, routeOf(id).length);
+/* Work is ticked off in route order, so an item's progress is a prefix of its
+   route. Editing that route can therefore invalidate work already done: move
+   an operation to the front and everything that used to precede it is now
+   behind an undone step. This rewrites the route and hands back whatever no
+   longer counts as done, so it goes on the list again.
+   Returns how many operations were reopened. */
+function setRoute(id, next) {
+  const before = routeOf(id), doneCount = prog(id);
+
+  /* what had actually been done on this item, as a bag of work types */
+  const pool = new Map();
+  for (let i = 0; i < doneCount; i++) pool.set(before[i], (pool.get(before[i]) || 0) + 1);
+
+  /* how far into the new route that bag reaches without a gap */
+  let n = 0;
+  while (n < next.length) {
+    const left = pool.get(next[n]) || 0;
+    if (!left) break;
+    pool.set(next[n], left - 1);
+    n++;
+  }
+
+  state.routes[id] = next;
+  state.progress[id] = n;
+  refitLedger(id, next, n);
+  return doneCount - n;
+}
+
+/* the record of which setup each operation was run in has to follow the
+   operation to its new position, or drop away with it */
+function refitLedger(id, next, n) {
+  const slots = [];
+  for (let i = 0; i < n; i++) slots.push({ work: next[i], idx: i, taken: false });
+  state.ledger.forEach(e => {
+    e.ops = e.ops.filter(o => {
+      if (o.itemId !== id) return true;
+      const slot = slots.filter(s => !s.taken && s.work === e.workId)[0];
+      if (!slot) return false;
+      slot.taken = true;
+      o.idx = slot.idx;
+      return true;
+    });
+  });
+  state.ledger = state.ledger.filter(e => e.ops.length);
+}
+
+/* how loudly to mention it when an edit puts work back on the list */
+function noteReopened(n, name) {
+  if (!n) return;
+  toast(name
+    ? tp(n, COPY.route.reopened_one, COPY.route.reopened_many, { name: name })
+    : tp(n, COPY.route.reopenedBulk_one, COPY.route.reopenedBulk_many));
 }
 
 /* ============================================================
@@ -2428,16 +2480,15 @@ $('#view-route').addEventListener('click', e => {
     const i = Number(mv.dataset.moveOp), j = i + Number(mv.dataset.dir);
     const r = routeOf(f).slice();
     if (j < 0 || j >= r.length) return;
-    const t = r[i]; r[i] = r[j]; r[j] = t;
-    state.routes[f] = r;
+    const tmp = r[i]; r[i] = r[j]; r[j] = tmp;
+    noteReopened(setRoute(f, r), item(f).code);
     return renderRoute();
   }
   const rm = e.target.closest('[data-drop-op]');
   if (rm) {
     const r = routeOf(f).slice();
     r.splice(Number(rm.dataset.dropOp), 1);
-    state.routes[f] = r;
-    fitProgress(f);
+    noteReopened(setRoute(f, r), item(f).code);
     return renderRoute();
   }
   const add = e.target.closest('[data-add-work]');
@@ -2446,21 +2497,22 @@ $('#view-route').addEventListener('click', e => {
     const r = routeOf(f).slice();
     const repeat = r.indexOf(w) > -1;
     r.push(w);
-    state.routes[f] = r;
+    setRoute(f, r);
     renderRoute();
     if (repeat) toast(t(COPY.route.repeatedOp, { name: workName(w) }));
     return;
   }
   if (e.target.id === 'btn-clear-route') {
-    state.routes[f] = [];
-    fitProgress(f);
+    noteReopened(setRoute(f, []), item(f).code);
     return renderRoute();
   }
   if (e.target.id === 'btn-apply-picked') {
     const r = routeOf(f).slice();
     const targets = state.items.filter(i => state.picked[i.id]);
-    targets.forEach(i => { state.routes[i.id] = r.slice(); fitProgress(i.id); });
+    let reopened = 0;
+    targets.forEach(i => { reopened += setRoute(i.id, r.slice()); });
     toast(tp(targets.length, COPY.route.copiedTo_one, COPY.route.copiedTo_many));
+    if (reopened) setTimeout(() => noteReopened(reopened, ''), 1400);
     return renderRoute();
   }
 });
@@ -2476,9 +2528,9 @@ $('#view-route').addEventListener('change', e => {
   if (e.target.id === 'copy-from') {
     const from = e.target.value;
     if (!from) return;
-    state.routes[state.focus] = routeOf(from).slice();
-    fitProgress(state.focus);
+    const reopened = setRoute(state.focus, routeOf(from).slice());
     toast(t(COPY.route.copiedFrom, { name: item(from).code }));
+    if (reopened) setTimeout(() => noteReopened(reopened, item(state.focus).code), 1400);
     return renderRoute();
   }
 });
@@ -2520,7 +2572,7 @@ $('#view-route').addEventListener('drop', e => {
   const [moved] = r.splice(dragFrom, 1);
   if (dragFrom < to) to--;
   r.splice(Math.max(0, Math.min(to, r.length)), 0, moved);
-  state.routes[state.focus] = r;
+  noteReopened(setRoute(state.focus, r), item(state.focus).code);
   dragFrom = null;
   renderRoute();
 });
