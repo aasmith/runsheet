@@ -338,7 +338,14 @@ button.tally__chip:hover{border-color:var(--ink);color:var(--ink);background:var
 /* ---------- run: per-item route strips ---------- */
 .strip{display:grid;grid-template-columns:190px minmax(0,1fr);gap:10px;align-items:start;padding:8px 0;border-bottom:1px solid var(--rule)}
 .strip:last-child{border-bottom:0}
-.strip__id{display:flex;flex-direction:column;gap:1px;padding-top:3px;min-width:0}
+.strip__id{display:flex;flex-direction:column;gap:1px;padding-top:3px;min-width:0;align-items:flex-start}
+.strip__code{
+  display:inline-flex;align-items:center;gap:5px;background:none;border:0;padding:0;
+  font-family:var(--mono);font-size:12px;font-weight:700;color:inherit;cursor:pointer;
+}
+.strip__code:hover{text-decoration:underline;text-underline-offset:3px}
+.strip__go{font-size:11px;font-weight:700;color:var(--ink-2);opacity:.7}
+.strip__code:hover .strip__go{opacity:1;color:var(--blue)}
 .strip__ops{display:flex;flex-wrap:wrap;gap:4px}
 .ostep{
   font-family:var(--mono);font-size:11px;font-weight:700;border:1.5px solid var(--rule-2);
@@ -460,19 +467,32 @@ td.mx__cell{width:62px;background:var(--white)}
 
 .tags{display:flex;flex-wrap:wrap;gap:6px}
 .tag{
-  display:inline-flex;align-items:center;gap:7px;background:var(--white);
-  border:1.5px solid var(--rule-2);border-radius:2px;padding:6px 9px;cursor:pointer;
+  display:inline-flex;align-items:stretch;background:var(--white);
+  border:1.5px solid var(--rule-2);border-radius:2px;overflow:hidden;
   font-family:var(--mono);font-size:12px;font-weight:700;line-height:1;
   transition:border-color .12s ease,background .12s ease,transform .06s ease;
 }
+.tag__main{
+  display:inline-flex;align-items:center;gap:7px;padding:6px 7px 6px 9px;
+  background:none;border:0;font:inherit;color:inherit;cursor:pointer;
+}
+.tag__main:disabled{cursor:default}
+.tag__jump{
+  display:inline-flex;align-items:center;padding:0 7px;background:none;
+  border:0;border-left:1px solid rgba(20,24,27,.16);
+  font-size:13px;font-weight:700;line-height:1;color:var(--ink-2);opacity:.75;
+  cursor:pointer;transition:background .12s ease,color .12s ease,opacity .12s ease;
+}
+.tag:hover .tag__jump{opacity:1}
+.tag__jump:hover,.tag__jump:focus-visible{background:var(--blue);color:var(--white);opacity:1}
 .tag__box{width:13px;height:13px;border:1.5px solid var(--rule-2);border-radius:1px;flex:none;display:grid;place-items:center;font-size:10px;color:transparent}
 .tag__wait{font-weight:400;font-size:10px;color:var(--ink-3);letter-spacing:.02em}
 .tag__next{font-weight:700;font-size:10px;letter-spacing:.02em;opacity:.72}
 .tag--finished{background:var(--gold-fill);border-color:var(--gold);color:#4A3705}
 .tag--finished .tag__medal{font-size:11px;line-height:1;flex:none}
 .tag--finished .tag__next{opacity:.8;text-transform:uppercase;letter-spacing:.1em;font-size:9px;color:var(--gold)}
-.tag--finished:hover{background:var(--stop-tint);border-color:var(--stop);color:var(--stop)}
-.tag--finished:hover .tag__next{color:var(--stop)}
+.tag--finished:has(.tag__main:hover){background:var(--stop-tint);border-color:var(--stop);color:var(--stop)}
+.tag--finished:has(.tag__main:hover) .tag__next{color:var(--stop)}
 .metahint{cursor:help;border-bottom:1px dotted var(--rule-2)}
 .metahint:hover{border-bottom-color:var(--ink-2);color:var(--ink)}
 .modal{
@@ -489,6 +509,28 @@ td.mx__cell{width:62px;background:var(--white)}
 .modal__head h2{margin:0;font-size:14px;font-weight:700;letter-spacing:-.01em}
 .modal__foot{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:11px 14px;border-top:1px solid var(--rule)}
 .modal__foot .hint{margin:0;max-width:44ch}
+.modal__card--slim{width:min(420px,100%)}
+.modal__filter{padding:11px 14px 0}
+.picklist{overflow-y:auto;max-height:46vh;padding:11px 14px 4px;display:flex;flex-direction:column;gap:4px}
+.pickrow{
+  display:flex;align-items:center;gap:9px;background:var(--white);border:1px solid var(--rule);
+  border-radius:2px;padding:7px 9px;cursor:pointer;text-align:left;font:inherit;width:100%;
+}
+.pickrow:hover{border-color:var(--ink)}
+.pickrow[aria-pressed="true"]{border-color:var(--blue);box-shadow:inset 3px 0 0 var(--blue)}
+.pickrow__box{width:13px;height:13px;border:1.5px solid var(--rule-2);border-radius:1px;flex:none;display:grid;place-items:center;font-size:10px;color:transparent}
+.pickrow[aria-pressed="true"] .pickrow__box{background:var(--blue);border-color:var(--blue);color:var(--white)}
+.pickrow__code{font-family:var(--mono);font-size:12px;font-weight:700}
+.pickrow__nm{font-size:12px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pickrow__ops{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--ink-3);white-space:nowrap}
+.urgentgroup{display:flex;align-items:center;gap:7px;flex-wrap:wrap;min-width:0}
+.urgentgroup__label{
+  font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink-3);
+}
+.urgentgroup + .urgentgroup{border-left:1px solid var(--rule-2);padding-left:12px}
+.chip--item[aria-pressed="true"]{background:var(--blue);border-color:var(--blue);color:var(--white)}
+.chip--more{border-style:dashed}
 .jsonarea{
   flex:1;min-height:200px;height:44vh;resize:none;margin:0;border:0;border-radius:0;
   background:var(--white);padding:12px 14px;
@@ -510,14 +552,14 @@ td.mx__cell{width:62px;background:var(--white)}
 }
 .tip--below::after{bottom:auto;top:-4px}
 .tag[data-s="ready"]{border-color:var(--ink)}
-.tag[data-s="ready"]:hover{background:var(--go-tint);border-color:var(--go);transform:translateY(-1px)}
-.tag[data-s="ready"]:hover .tag__box{border-color:var(--go);color:var(--go)}
+.tag[data-s="ready"]:has(.tag__main:hover){background:var(--go-tint);border-color:var(--go);transform:translateY(-1px)}
+.tag[data-s="ready"]:has(.tag__main:hover) .tag__box{border-color:var(--go);color:var(--go)}
 .tag[data-s="wait"]{border-style:dashed;color:var(--ink-3);cursor:default;background:transparent}
 .tag[data-s="done"]{background:var(--go-tint);border-color:var(--go);color:var(--go)}
 .tag[data-s="done"] .tag__box{background:var(--go);border-color:var(--go);color:var(--white)}
-.tag[data-s="done"]:hover{background:var(--stop-tint);border-color:var(--stop);color:var(--stop)}
-.tag[data-s="done"]:hover .tag__box{background:var(--stop);border-color:var(--stop);font-size:0}
-.tag[data-s="done"]:hover .tag__box::after{content:'↺';font-size:10px;color:var(--white)}
+.tag[data-s="done"]:has(.tag__main:hover){background:var(--stop-tint);border-color:var(--stop);color:var(--stop)}
+.tag[data-s="done"]:has(.tag__main:hover) .tag__box{background:var(--stop);border-color:var(--stop);font-size:0}
+.tag[data-s="done"]:has(.tag__main:hover) .tag__box::after{content:'↺';font-size:10px;color:var(--white)}
 .tag--prio{box-shadow:inset 3px 0 0 var(--blue);padding-left:11px}
 
 /* ---------- run: steps rail ---------- */
@@ -591,6 +633,7 @@ details.fold > summary:hover{color:var(--ink)}
   .sheethead__title{font-size:23px}
   .topbar__tools{padding-bottom:12px}
   .runcard{grid-template-columns:40px minmax(0,1fr)}
+  .urgentgroup + .urgentgroup{border-left:0;padding-left:0}
   .hero{gap:10px;padding-bottom:10px}
   .hero__eq{padding-bottom:0}
   .runcard__punch{display:none}
@@ -717,6 +760,24 @@ details.fold > summary:hover{color:var(--ink)}
       <span class="row__spacer"></span>
       <button class="btn btn--ghost btn--sm" id="json-dismiss"></button>
       <button class="btn btn--solid btn--sm" id="json-action"></button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="itembox" hidden>
+  <div class="modal__card modal__card--slim" role="dialog" aria-modal="true" aria-labelledby="item-title">
+    <div class="modal__head">
+      <h2 id="item-title"></h2>
+      <span class="row__spacer"></span>
+      <button class="icon-btn" id="item-close" aria-label="Close">✕</button>
+    </div>
+    <div class="modal__filter"><input class="field" id="item-filter" autocomplete="off"></div>
+    <div class="picklist" id="item-list"></div>
+    <div class="modal__foot">
+      <span class="hint" id="item-count"></span>
+      <span class="row__spacer"></span>
+      <button class="btn btn--ghost btn--sm" id="item-clear"></button>
+      <button class="btn btn--solid btn--sm" id="item-done"></button>
     </div>
   </div>
 </div>
@@ -915,9 +976,25 @@ const COPY = {
     meterLabel: 'Work complete',
     meterValue: '{done} / {total} · {pct}%',
 
-    urgentLabel: 'Urgent steps',
-    urgentNoSteps: 'No steps defined — batching is optimised purely for the fewest setups.',
-    urgentPrompt: 'Pick one and its items get pulled forward — splitting a batch if that clears the step sooner.',
+    urgentLabel: 'Urgent',
+    urgentStepsLabel: 'Steps',
+    urgentItemsLabel: 'Items',
+    urgentNoSteps: 'no steps defined',
+    urgentChoose: 'Choose items',
+    urgentAddMore: '+ add',
+    urgentMore: '+{n} more',
+    urgentPrompt: 'Mark a step or an item urgent and it gets pulled forward — splitting a batch if that clears it sooner.',
+    /* the picker behind Choose items */
+    pickTitle: 'Urgent items',
+    pickFilter: 'Filter by code or description',
+    pickNoMatch: 'No item matches that.',
+    pickNoItems: 'This runsheet has no items yet.',
+    pickCount: '{n} marked urgent',
+    pickClear: 'Clear all',
+    pickDone: 'Done',
+    pickItemOps_one: '{n} op left',
+    pickItemOps_many: '{n} ops left',
+    pickItemDone: 'finished',
     /* {extra} added setups, {sooner} batches gained, {now}/{was} clear points */
     urgentSplit: 'Split: {extra} to clear them at batch {now} instead of {was} — {sooner} sooner.',
     urgentSplitExtra_one: '{n} extra setup',
@@ -968,6 +1045,8 @@ const COPY = {
     cardFinished_many: '{n} finished',
     cardFinishesTip: 'Comes off the floor after this setup: {list}',
     untickTip: 'Put this back',
+    /* the small arrow on each item, which opens that item's route */
+    editRoute: "Open {name}'s route",
     batchDone: '{name} batch marked done',
     putBack: '{n} operations put back on {name}',
     outOfOrder: 'Earlier work has to happen first',
@@ -1145,7 +1224,7 @@ const state = {
   title: '', description: '',
   items: [], works: [], steps: [],
   routes: {}, progress: {}, ledger: [],
-  priority: [],
+  priority: [], priorityItems: [],
   tab: 'define', stage: 'define',
   focus: null, workFilter: '', picked: {}, edit: null, confirm: null
 };
@@ -1312,12 +1391,17 @@ function buildPlan(urgent, weight, lookahead) {
 
 /* Urgent steps get a second plan drawn up, and it only wins if it is genuinely
    cheaper — so a split never happens unless it clears those steps sooner. */
+/* Urgency can be pinned to a step — which means every item under it — or to
+   an item on its own. The planner only ever sees the union. */
+function urgentSet() {
+  const out = new Set();
+  state.priority.forEach(sid => { if (step(sid)) stepItemSet(sid).forEach(id => out.add(id)); });
+  (state.priorityItems || []).forEach(id => { if (item(id)) out.add(id); });
+  return out;
+}
+
 function computePlan() {
-  const urgent = new Set();
-  state.priority.forEach(sid => {
-    const st = step(sid);
-    if (st) stepItemSet(sid).forEach(id => urgent.add(id));
-  });
+  const urgent = urgentSet();
   /* rollouts are cheap on shop-sized jobs; on very large ones, fall back */
   const lookahead = state.items.length * Math.max(1, state.works.length) <= 4000;
 
@@ -1759,7 +1843,17 @@ function renderRoute() {
   '</div>';
 
   host.innerHTML = h;
+
+  /* arriving from the run page: put the chosen item in front of you */
+  if (focusPending) {
+    focusPending = false;
+    const row = $('.ritem[aria-current="true"]');
+    if (row) row.scrollIntoView({ block: 'nearest' });
+    const panel = $$('#route-body .panel')[1];
+    if (panel && window.innerWidth <= 1020) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 }
+let focusPending = false;
 
 function paletteHTML(route) {
   const q = (state.workFilter || '').toLowerCase();
@@ -1830,6 +1924,7 @@ function noteReopened(n, name) {
    ============================================================ */
 function renderRun() {
   const C = COPY.run;
+  const urgentNow = urgentSet();
   const host = $('#run-body');
   if (!state.items.length || !totalOps()) {
     host.innerHTML = '<div class="viewhead"><div class="eyebrow">' + esc(C.eyebrow) + '</div>' +
@@ -1866,7 +1961,7 @@ function renderRun() {
   /* control strip */
   const stepsExist = state.steps.length > 0;
   let verdict = C.urgentPrompt;
-  if (state.priority.length) {
+  if (urgentNow.size) {
     const was = plan.baseline.batches.length, wasClear = plan.baseline.clear;
     if (plan.split) {
       const extra = b.length - was, sooner = wasClear - plan.clear;
@@ -1880,13 +1975,38 @@ function renderRun() {
       verdict = t(C.urgentWhole, { n: String(plan.clear).padStart(2, '0') });
     }
   }
+  /* Urgent items are shown as chips, but a long list would swamp the strip,
+     so only the first few sit here and the rest live behind the picker. */
+  const SHOWN = 5;
+  const chosen = (state.priorityItems || []).filter(id => item(id));
+  const visible = chosen.slice(0, SHOWN);
+  const hidden = chosen.length - visible.length;
+
   h += '<div class="control"><div class="control__row">' +
     '<span class="eyebrow">' + esc(C.urgentLabel) + '</span>' +
-    (stepsExist
-      ? '<div class="chips">' + state.steps.map(s =>
-          '<button class="chip" data-prio="' + s.id + '" aria-pressed="' + (state.priority.indexOf(s.id) > -1) + '">' + esc(s.name) + '</button>').join('') + '</div>' +
-        '<span class="hint" style="margin:0;max-width:56ch">' + esc(verdict) + '</span>'
-      : '<span class="hint" style="margin:0">' + esc(C.urgentNoSteps) + '</span>') +
+
+    '<div class="urgentgroup">' +
+      '<span class="urgentgroup__label">' + esc(C.urgentStepsLabel) + '</span>' +
+      (stepsExist
+        ? '<div class="chips">' + state.steps.map(s =>
+            '<button class="chip" data-prio="' + s.id + '" aria-pressed="' +
+            (state.priority.indexOf(s.id) > -1) + '">' + esc(s.name) + '</button>').join('') + '</div>'
+        : '<span class="hint" style="margin:0">' + esc(C.urgentNoSteps) + '</span>') +
+    '</div>' +
+
+    '<div class="urgentgroup">' +
+      '<span class="urgentgroup__label">' + esc(C.urgentItemsLabel) + '</span>' +
+      '<div class="chips">' +
+        visible.map(id => '<button class="chip chip--item" data-prio-item="' + id + '" aria-pressed="true">' +
+          esc(item(id).code) + '</button>').join('') +
+        (hidden > 0 ? '<button class="chip chip--more" data-pick-items>' +
+          esc(t(C.urgentMore, { n: hidden })) + '</button>' : '') +
+        '<button class="chip" data-pick-items>' +
+          esc(chosen.length ? C.urgentAddMore : C.urgentChoose) + '</button>' +
+      '</div>' +
+    '</div>' +
+
+    '<span class="hint" style="margin:0;max-width:52ch">' + esc(verdict) + '</span>' +
     '</div></div>';
 
   /* Cards = setups already run (from the ledger) followed by planned ones.
@@ -1929,7 +2049,7 @@ function renderRun() {
     const all = batch.done.concat(batch.ops);
     const codes = ops => ops.map(o => (item(o.itemId) || {}).code).filter(Boolean).join(', ');
     const finishers = all.filter(o => o.idx === routeOf(o.itemId).length - 1);
-    const urgents = all.filter(o => state.priority.some(sid => stepItemSet(sid).has(o.itemId)));
+    const urgents = all.filter(o => urgentNow.has(o.itemId));
     const count = batch.done.length + batch.ops.length;
 
     const bits = [esc(tp(count, C.cardItems_one, C.cardItems_many))];
@@ -1964,19 +2084,24 @@ function renderRun() {
         ? workName(routeOf(o.itemId)[nx]) : '';
       /* nothing left on this item's route — it leaves the work area */
       const finished = done && nx >= routeOf(o.itemId).length;
-      const urgent = state.priority.some(sid => stepItemSet(sid).has(o.itemId));
+      const urgent = urgentNow.has(o.itemId);
       const attrs = done
         ? ' data-untick="' + o.itemId + '" data-idx="' + o.idx + '" title="' + esc(C.untickTip) + '"'
         : (ready ? ' data-tick="' + o.itemId + '" data-idx="' + o.idx + '"' : ' disabled');
-      return '<button class="tag' + (urgent ? ' tag--prio' : '') + (finished ? ' tag--finished' : '') + '" data-s="' +
-        (done ? 'done' : (ready ? 'ready' : 'wait')) + '"' + attrs + '>' +
-        (finished
-          ? (C.tagFinishedMark ? '<span class="tag__medal">' + esc(C.tagFinishedMark) + '</span>' : '')
-          : (done || ready ? '<span class="tag__box">✓</span>' : '')) + esc(it.code) +
-        (waitOn ? '<span class="tag__wait">' + esc(t(C.tagAfter, { name: waitOn })) + '</span>' : '') +
-        (sendTo ? '<span class="tag__next">' + esc(t(C.tagNext, { name: sendTo })) + '</span>' : '') +
-        (finished ? '<span class="tag__next">' + esc(C.tagFinished) + '</span>' : '') +
-        '</button>';
+      const goRoute = esc(t(C.editRoute, { name: it.code }));
+      return '<span class="tag' + (urgent ? ' tag--prio' : '') + (finished ? ' tag--finished' : '') +
+        '" data-s="' + (done ? 'done' : (ready ? 'ready' : 'wait')) + '">' +
+        '<button class="tag__main"' + attrs + '>' +
+          (finished
+            ? (C.tagFinishedMark ? '<span class="tag__medal">' + esc(C.tagFinishedMark) + '</span>' : '')
+            : (done || ready ? '<span class="tag__box">✓</span>' : '')) + esc(it.code) +
+          (waitOn ? '<span class="tag__wait">' + esc(t(C.tagAfter, { name: waitOn })) + '</span>' : '') +
+          (sendTo ? '<span class="tag__next">' + esc(t(C.tagNext, { name: sendTo })) + '</span>' : '') +
+          (finished ? '<span class="tag__next">' + esc(C.tagFinished) + '</span>' : '') +
+        '</button>' +
+        '<button class="tag__jump" data-route-item="' + o.itemId + '" title="' + goRoute +
+          '" aria-label="' + goRoute + '">↗</button>' +
+      '</span>';
     };
 
     h += '<div class="runcard" data-s="' + st + '">' +
@@ -2071,7 +2196,9 @@ function renderRun() {
     state.items.map(it => {
       const r = routeOf(it.id), p = prog(it.id);
       return '<div class="strip"><div class="strip__id">' +
-          '<span class="mx__code">' + esc(it.code) + '</span>' +
+          '<button class="strip__code" data-route-item="' + it.id + '" title="' +
+            esc(t(C.editRoute, { name: it.code })) + '">' + esc(it.code) +
+            '<span class="strip__go" aria-hidden="true">↗</span></button>' +
           '<span class="mx__nm">' + esc(it.name) + '</span>' +
         '</div><div class="strip__ops">' +
         (r.length ? r.map((w, i) => {
@@ -2106,14 +2233,14 @@ const canStore = (() => {
   } catch (err) { return false; }
 })();
 
-const emptyData = () => ({ items: [], works: [], steps: [], routes: {}, progress: {}, ledger: [], priority: [] });
+const emptyData = () => ({ items: [], works: [], steps: [], routes: {}, progress: {}, ledger: [], priority: [], priorityItems: [] });
 const currentSheet = () => store.sheets.filter(s => s.id === store.active)[0] || null;
 
 function sheetData() {
   return {
     items: state.items, works: state.works, steps: state.steps,
     routes: state.routes, progress: state.progress, ledger: state.ledger,
-    priority: state.priority
+    priority: state.priority, priorityItems: state.priorityItems
   };
 }
 function applyData(d) {
@@ -2125,6 +2252,7 @@ function applyData(d) {
   state.progress = d.progress || {};
   state.ledger = d.ledger || [];
   state.priority = d.priority || [];
+  state.priorityItems = d.priorityItems || [];
   state.picked = {}; state.focus = null; state.edit = null; state.confirm = null; state.workFilter = '';
 }
 
@@ -2642,6 +2770,14 @@ $('#view-route').addEventListener('dragend', () => {
 
 /* -- run -- */
 $('#view-run').addEventListener('click', e => {
+  /* straight to this item's route, without hunting for it in the list */
+  const jump = e.target.closest('[data-route-item]');
+  if (jump) {
+    state.focus = jump.dataset.routeItem;
+    focusPending = true;
+    go('route');
+    return;
+  }
   const tick = e.target.closest('[data-tick]');
   if (tick) {
     const id = tick.dataset.tick;
@@ -2657,6 +2793,13 @@ $('#view-run').addEventListener('click', e => {
     if (!b) return;
     b.ops.filter(opReady).forEach(o => { state.progress[o.itemId] = o.idx + 1; logOp(o.itemId, o.idx); });
     toast(t(COPY.run.batchDone, { name: workName(b.workId) }));
+    return render();
+  }
+  if (e.target.closest('[data-pick-items]')) return openItemPicker();
+  const pi = e.target.closest('[data-prio-item]');
+  if (pi) {
+    const id = pi.dataset.prioItem, k = (state.priorityItems || []).indexOf(id);
+    if (k > -1) state.priorityItems.splice(k, 1); else state.priorityItems.push(id);
     return render();
   }
   const pr = e.target.closest('[data-prio]');
@@ -2686,7 +2829,8 @@ function sheetJSON(sheet) {
   return JSON.stringify({
     v: 2, title: src.title, description: src.description,
     items: d.items, works: d.works, steps: d.steps,
-    routes: d.routes, progress: d.progress, ledger: d.ledger, priority: d.priority
+    routes: d.routes, progress: d.progress, ledger: d.ledger,
+    priority: d.priority, priorityItems: d.priorityItems || []
   }, null, 2);
 }
 function saveFile(sheet) {
@@ -2747,6 +2891,64 @@ function openJsonIn() {
   const label = (read && read.title) || COPY.chrome.untitledSheet;
   if (acceptRead(read, label)) closeJsonBox();
 }
+/* ---- the urgent-items picker ---- */
+let pickFilter = '';
+function renderPickList() {
+  const C = COPY.run;
+  const q = pickFilter.trim().toLowerCase();
+  const list = state.items.filter(i =>
+    !q || (i.code + ' ' + (i.name || '')).toLowerCase().indexOf(q) > -1);
+  const chosen = state.priorityItems || [];
+  $('#item-list').innerHTML = !state.items.length
+    ? '<span class="hint" style="margin:0">' + esc(C.pickNoItems) + '</span>'
+    : (!list.length
+      ? '<span class="hint" style="margin:0">' + esc(C.pickNoMatch) + '</span>'
+      : list.map(i => {
+          const left = routeOf(i.id).length - prog(i.id);
+          return '<button class="pickrow" data-pick-item="' + i.id + '" aria-pressed="' +
+            (chosen.indexOf(i.id) > -1) + '">' +
+            '<span class="pickrow__box">✓</span>' +
+            '<span class="pickrow__code">' + esc(i.code) + '</span>' +
+            '<span class="pickrow__nm">' + esc(i.name) + '</span>' +
+            '<span class="pickrow__ops">' + esc(left > 0
+              ? tp(left, C.pickItemOps_one, C.pickItemOps_many)
+              : C.pickItemDone) + '</span>' +
+          '</button>';
+        }).join(''));
+  $('#item-count').textContent = t(C.pickCount, { n: chosen.length });
+  $('#item-clear').disabled = !chosen.length;
+}
+function openItemPicker() {
+  const C = COPY.run;
+  pickFilter = '';
+  $('#item-title').textContent = C.pickTitle;
+  $('#item-filter').placeholder = C.pickFilter;
+  $('#item-filter').value = '';
+  $('#item-clear').textContent = C.pickClear;
+  $('#item-done').textContent = C.pickDone;
+  renderPickList();
+  $('#itembox').hidden = false;
+  $('#item-filter').focus();
+}
+function closeItemPicker() {
+  $('#itembox').hidden = true;
+  render();
+}
+$('#item-list').addEventListener('click', e => {
+  const row = e.target.closest('[data-pick-item]');
+  if (!row) return;
+  const id = row.dataset.pickItem;
+  state.priorityItems = state.priorityItems || [];
+  const k = state.priorityItems.indexOf(id);
+  if (k > -1) state.priorityItems.splice(k, 1); else state.priorityItems.push(id);
+  renderPickList();
+});
+$('#item-filter').addEventListener('input', e => { pickFilter = e.target.value; renderPickList(); });
+$('#item-clear').addEventListener('click', () => { state.priorityItems = []; renderPickList(); });
+$('#item-done').addEventListener('click', closeItemPicker);
+$('#item-close').addEventListener('click', closeItemPicker);
+$('#itembox').addEventListener('click', e => { if (e.target.id === 'itembox') closeItemPicker(); });
+
 $('#btn-copy-json').addEventListener('click', () => openJsonBox('copy', null));
 $('#btn-paste-json').addEventListener('click', () => openJsonBox('paste'));
 $('#json-close').addEventListener('click', closeJsonBox);
@@ -2757,6 +2959,7 @@ $('#json-action').addEventListener('click', () => {
 $('#jsonbox').addEventListener('click', e => { if (e.target.id === 'jsonbox') closeJsonBox(); });
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && !$('#jsonbox').hidden) closeJsonBox();
+  if (e.key === 'Escape' && !$('#itembox').hidden) closeItemPicker();
 });
 
 $('#btn-export').addEventListener('click', () => { persist(); saveFile(null); });
@@ -2786,7 +2989,7 @@ function readNative(d, fallbackTitle) {
     data: {
       items: d.items || [], works: d.works || [], steps: d.steps || [],
       routes: d.routes || {}, progress: d.progress || {}, ledger: d.ledger || [],
-      priority: d.priority || []
+      priority: d.priority || [], priorityItems: d.priorityItems || []
     }
   };
 }
