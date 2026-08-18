@@ -475,6 +475,20 @@ td.mx__cell{width:62px;background:var(--white)}
 .tag--finished:hover .tag__next{color:var(--stop)}
 .metahint{cursor:help;border-bottom:1px dotted var(--rule-2)}
 .metahint:hover{border-bottom-color:var(--ink-2);color:var(--ink)}
+.tip{
+  position:fixed;left:0;top:0;z-index:90;max-width:290px;
+  background:var(--ink);color:var(--panel);border-radius:3px;
+  font-family:var(--display);font-size:12px;font-weight:500;line-height:1.4;
+  letter-spacing:0;text-transform:none;padding:7px 10px;
+  box-shadow:0 3px 12px rgba(20,24,27,.22);
+  opacity:0;pointer-events:none;transition:opacity .1s ease;
+}
+.tip.is-on{opacity:1}
+.tip::after{
+  content:'';position:absolute;left:50%;margin-left:-4px;bottom:-4px;
+  width:8px;height:8px;background:var(--ink);transform:rotate(45deg);
+}
+.tip--below::after{bottom:auto;top:-4px}
 .tag[data-s="ready"]{border-color:var(--ink)}
 .tag[data-s="ready"]:hover{background:var(--go-tint);border-color:var(--go);transform:translateY(-1px)}
 .tag[data-s="ready"]:hover .tag__box{border-color:var(--go);color:var(--go)}
@@ -668,6 +682,7 @@ details.fold > summary:hover{color:var(--ink)}
   </section>
 </main>
 
+<div class="tip" id="tip" role="tooltip"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
@@ -882,8 +897,6 @@ const COPY = {
     cardReadyNow: '{n} ready now',
     cardMoreLater: '{n} more later',
     cardMoreLaterTip: '{n} more items reach {name} after this setup, so it will have to be run again.',
-    /* shown only as a tip, on the item count, when this setup needs no repeat */
-    cardCoversAll: 'Covers every item that still needs this work.',
     cardUrgent: '{n} urgent',
     cardUrgentTip: 'On a step you marked urgent: {list}',
     cardSeparator: ' · ',
@@ -1309,6 +1322,48 @@ function cleanLedger() {
   });
   state.ledger = state.ledger.filter(e => e.ops.length);
 }
+/* ---- tooltips: anything with data-tip gets one on hover, or on tap ---- */
+function showTip(target) {
+  const text = target.getAttribute('data-tip');
+  const el = $('#tip');
+  if (!text || !el) return;
+  el.textContent = text;
+  el.classList.add('is-on');
+  const r = target.getBoundingClientRect();
+  const w = el.offsetWidth, h = el.offsetHeight;
+  let left = r.left + r.width / 2 - w / 2;
+  left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
+  let top = r.top - h - 9;
+  el.classList.toggle('tip--below', top < 8);
+  if (top < 8) top = r.bottom + 9;
+  el.style.left = Math.round(left) + 'px';
+  el.style.top = Math.round(top) + 'px';
+}
+function hideTip() {
+  const el = $('#tip');
+  if (el) el.classList.remove('is-on');
+}
+/* a tap emits mouse events too, and the mouseout that follows would close the
+   tip straight away — so on touch the tip stays until something else is tapped */
+let tipByTouch = false;
+document.addEventListener('pointerdown', e => { tipByTouch = e.pointerType === 'touch'; }, true);
+document.addEventListener('mouseover', e => {
+  if (tipByTouch) return;
+  const h = e.target.closest && e.target.closest('[data-tip]');
+  if (h) showTip(h);
+});
+document.addEventListener('mouseout', e => {
+  if (tipByTouch) return;
+  const h = e.target.closest && e.target.closest('[data-tip]');
+  if (h) hideTip();
+});
+document.addEventListener('click', e => {
+  const h = e.target.closest && e.target.closest('[data-tip]');
+  if (h) showTip(h); else hideTip();
+});
+window.addEventListener('scroll', hideTip, true);
+window.addEventListener('resize', hideTip);
+
 let toastTimer = null;
 function toast(msg) {
   const t = $('#toast');
@@ -1520,9 +1575,11 @@ function commitEdit() {
 }
 
 const emptyBox = (title, body) => '<div class="empty"><strong>' + esc(title) + '</strong>' + esc(body) + '</div>';
-/* a meta-line phrase, with its detail on hover when there is one */
-const hint = (text, tip) =>
-  '<span class="metahint"' + (tip ? ' title="' + esc(tip) + '"' : '') + '>' + esc(text) + '</span>';
+/* a meta-line phrase. With detail behind it, it becomes a hover target;
+   without, it is plain text and carries no hint that it could be hovered. */
+const hint = (text, tip) => tip
+  ? '<span class="metahint" data-tip="' + esc(tip) + '">' + esc(text) + '</span>'
+  : esc(text);
 const editActions = () =>
   '<button class="btn btn--sm btn--solid" data-save-edit>' + esc(COPY.define.saveEdit) + '</button>' +
   '<button class="icon-btn" data-cancel-edit title="' + esc(COPY.define.cancelEdit) + '">✕</button>';
@@ -1760,8 +1817,7 @@ function renderRun() {
     const urgents = all.filter(o => state.priority.some(sid => stepItemSet(sid).has(o.itemId)));
     const count = batch.done.length + batch.ops.length;
 
-    const bits = [hint(tp(count, C.cardItems_one, C.cardItems_many),
-      (batch.later || st === 'done') ? '' : C.cardCoversAll)];
+    const bits = [esc(tp(count, C.cardItems_one, C.cardItems_many))];
     if (batch.done.length && st !== 'done') bits.push(esc(t(C.cardTicked, { n: batch.done.length })));
     if (st === 'done') bits.push(esc(C.cardComplete));
     else if (st === 'blocked') bits.push(esc(t(C.cardWaiting, { list: waits.join(', ') })));
@@ -2469,9 +2525,6 @@ $('#view-route').addEventListener('dragend', () => {
 
 /* -- run -- */
 $('#view-run').addEventListener('click', e => {
-  /* the meta-line tips are hover-only, so a tap says the same thing */
-  const mh = e.target.closest('.metahint[title]');
-  if (mh) { toast(mh.getAttribute('title')); return; }
   const tick = e.target.closest('[data-tick]');
   if (tick) {
     const id = tick.dataset.tick;
