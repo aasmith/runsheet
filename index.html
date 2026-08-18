@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Runsheet — batch planner &amp; work tracker</title>
+<title>Runsheet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Azeret+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -562,25 +562,25 @@ details.fold > summary:hover{color:var(--ink)}
   <div class="brand">
     <span class="brand__mark" aria-hidden="true">▤</span>
     <span>
-      <span class="brand__name">Runsheet</span><br>
-      <span class="brand__sub" id="brand-sub">batch planner &amp; work tracker</span>
+      <span class="brand__name" data-copy="app.brandName">Runsheet</span><br>
+      <span class="brand__sub" id="brand-sub"></span>
     </span>
   </div>
   <nav class="tabs" id="tabs" role="tablist" aria-label="Stages">
-    <button class="tab" role="tab" data-tab="define" aria-selected="true"><span class="tab__n">01</span>Define</button>
-    <button class="tab" role="tab" data-tab="route" aria-selected="false"><span class="tab__n">02</span>Route</button>
-    <button class="tab" role="tab" data-tab="run" aria-selected="false"><span class="tab__n">03</span>Run</button>
+    <button class="tab" role="tab" data-tab="define" aria-selected="true"><span class="tab__n">01</span><span data-copy="chrome.tabDefine"></span></button>
+    <button class="tab" role="tab" data-tab="route" aria-selected="false"><span class="tab__n">02</span><span data-copy="chrome.tabRoute"></span></button>
+    <button class="tab" role="tab" data-tab="run" aria-selected="false"><span class="tab__n">03</span><span data-copy="chrome.tabRun"></span></button>
   </nav>
   <div class="jobbar" id="jobbar">
-    <button class="btn btn--ghost btn--sm" id="btn-sheets"><span aria-hidden="true">▤</span> Library</button>
+    <button class="btn btn--ghost btn--sm" id="btn-sheets"><span aria-hidden="true">▤</span> <span data-copy="chrome.libraryButton"></span></button>
     <span class="crumb" id="topbar-title">Untitled runsheet</span>
   </div>
   <div class="topbar__tools" id="tools">
-    <button class="btn btn--ghost btn--sm" id="btn-export">Save file</button>
-    <button class="btn btn--ghost btn--sm" id="btn-import">Open file</button>
+    <button class="btn btn--ghost btn--sm" id="btn-export" data-copy="chrome.saveFile"></button>
+    <button class="btn btn--ghost btn--sm" id="btn-import" data-copy="chrome.openFile"></button>
   </div>
   <div class="libbar" id="libbar">
-    <button class="btn btn--sm" id="btn-back"><span aria-hidden="true">↩</span> Back to <span id="back-title"></span></button>
+    <button class="btn btn--sm" id="btn-back"><span aria-hidden="true">↩</span> <span data-copy="chrome.backTo"></span> <span id="back-title"></span></button>
   </div>
   <input type="file" id="file-input" accept="application/json" class="sr">
 </header>
@@ -589,49 +589,49 @@ details.fold > summary:hover{color:var(--ink)}
   <!-- =============== 01 DEFINE =============== -->
   <section class="view is-active" id="view-define" role="tabpanel">
     <div class="sheethead">
-      <input id="sheet-title" class="sheethead__title" placeholder="Untitled runsheet" autocomplete="off" aria-label="Runsheet title">
-      <input id="sheet-desc" class="sheethead__desc" placeholder="Add a note — customer, order number, due date…" autocomplete="off" aria-label="Runsheet description">
+      <input id="sheet-title" class="sheethead__title" data-copy-ph="define.sheetTitlePlaceholder" autocomplete="off" aria-label="Runsheet title">
+      <input id="sheet-desc" class="sheethead__desc" data-copy-ph="define.sheetDescPlaceholder" autocomplete="off" aria-label="Runsheet description">
     </div>
     <div class="viewhead">
-      <div class="eyebrow">Stage 01</div>
-      <h1>List what you have, what has to be done, and what gets built.</h1>
-      <p>Items are the things work happens to. Work types are the operations you can run. Steps are assembly points: they hold finished items, and they can hold other steps when one assembly feeds the next. Click any name here to rename it.</p>
+      <div class="eyebrow" data-copy="define.eyebrow"></div>
+      <h1 data-copy="define.heading"></h1>
+      <p data-copy="define.intro"></p>
     </div>
     <div class="cols">
       <div class="panel">
-        <div class="panel__head"><h2>Items</h2><span class="panel__count" id="count-items">0</span></div>
+        <div class="panel__head"><h2 data-copy="define.itemsHeading"></h2><span class="panel__count" id="count-items">0</span></div>
         <div class="panel__body">
           <div class="addrow">
-            <input class="field field--mono" id="in-item-code" placeholder="CODE" style="max-width:96px" autocomplete="off">
-            <input class="field" id="in-item-name" placeholder="Description" autocomplete="off">
-            <button class="btn btn--solid" id="btn-add-item">Add</button>
+            <input class="field field--mono" id="in-item-code" data-copy-ph="define.itemCodePlaceholder" style="max-width:96px" autocomplete="off">
+            <input class="field" id="in-item-name" data-copy-ph="define.itemNamePlaceholder" autocomplete="off">
+            <button class="btn btn--solid" id="btn-add-item" data-copy="define.addButton"></button>
           </div>
           <ul class="list" id="list-items"></ul>
-          <p class="hint">Got a list already? Paste it into either box — one item per line, as <span class="mono">CODE, Name</span> — and they all get added at once.</p>
+          <p class="hint" data-copy-html="define.itemsHint"></p>
         </div>
       </div>
 
       <div class="panel">
-        <div class="panel__head"><h2>Work types</h2><span class="panel__count" id="count-works">0</span></div>
+        <div class="panel__head"><h2 data-copy="define.worksHeading"></h2><span class="panel__count" id="count-works">0</span></div>
         <div class="panel__body">
           <div class="addrow">
-            <input class="field" id="in-work-name" placeholder="e.g. Powder coat" autocomplete="off">
-            <button class="btn btn--solid" id="btn-add-work">Add</button>
+            <input class="field" id="in-work-name" data-copy-ph="define.workPlaceholder" autocomplete="off">
+            <button class="btn btn--solid" id="btn-add-work" data-copy="define.addButton"></button>
           </div>
           <ul class="list" id="list-works"></ul>
-          <p class="hint">One entry per kind of work you'd set up for. Paste a list to add several at once. Order them the way they usually run — it breaks ties when two batches are equally good.</p>
+          <p class="hint" data-copy="define.worksHint"></p>
         </div>
       </div>
 
       <div class="panel">
-        <div class="panel__head"><h2>Steps</h2><span class="panel__count" id="count-steps">0</span></div>
+        <div class="panel__head"><h2 data-copy="define.stepsHeading"></h2><span class="panel__count" id="count-steps">0</span></div>
         <div class="panel__body">
           <div class="addrow">
-            <input class="field" id="in-step-name" placeholder="e.g. Cabinet body" autocomplete="off">
-            <button class="btn btn--solid" id="btn-add-step">Add</button>
+            <input class="field" id="in-step-name" data-copy-ph="define.stepPlaceholder" autocomplete="off">
+            <button class="btn btn--solid" id="btn-add-step" data-copy="define.addButton"></button>
           </div>
           <div id="list-steps"></div>
-          <p class="hint">Click items to attach them, and paste a list to add several steps at once. A step is clear to assemble once every item on it — and every sub-assembly inside it — has finished its route.</p>
+          <p class="hint" data-copy="define.stepsHint"></p>
         </div>
       </div>
     </div>
@@ -640,9 +640,9 @@ details.fold > summary:hover{color:var(--ink)}
   <!-- =============== 02 ROUTE =============== -->
   <section class="view" id="view-route" role="tabpanel">
     <div class="viewhead">
-      <div class="eyebrow">Stage 02</div>
-      <h1>Give each item its route: the work it needs, in the order it needs it.</h1>
-      <p>Pick an item on the left, build its route on the right. Drag operations to reorder, or copy a finished route onto as many items as you like.</p>
+      <div class="eyebrow" data-copy="route.eyebrow"></div>
+      <h1 data-copy="route.heading"></h1>
+      <p data-copy="route.intro"></p>
     </div>
     <div id="route-body"></div>
   </section>
@@ -662,6 +662,354 @@ details.fold > summary:hover{color:var(--ink)}
 
 <script>
 'use strict';
+
+/* ============================================================================
+   ▤  ALL USER-VISIBLE COPY LIVES HERE  ▤
+   ----------------------------------------------------------------------------
+   Every word this app shows a person is in this one object. Nothing below it
+   contains English. Edit freely — the code reads from here.
+
+   Placeholders in braces are filled in at runtime. Keep them exactly as
+   spelled, including the braces:  "{n} items"  →  "11 items"
+       {n}     a count            {name}   an item code, work type or step name
+       {title} a runsheet title   {list}   a comma-separated list of names
+   A few lines take named counts instead of {n} — {ops}, {items}, {done} and so
+   on. The comment above each of those says what goes where.
+
+   Where a line needs to read correctly for one thing and for several, there
+   are two versions of it: _one is used when {n} is exactly 1, _many otherwise.
+   Both must be filled in.
+
+   HTML is allowed only where a line already contains a tag, e.g. <b>…</b>.
+   ============================================================================ */
+const COPY = {
+
+  /* --- the app itself, and the bar across the top ----------------------- */
+  app: {
+    documentTitle: 'Runsheet — batch planner & work tracker',
+    brandName: 'Runsheet',
+    tagline: 'batch planner & work tracker',
+    taglineLibrary: 'library'
+  },
+  chrome: {
+    libraryButton: 'Library',
+    backTo: 'Back to',
+    nothingOpen: 'Nothing open',
+    untitledSheet: 'Untitled runsheet',
+    saveFile: 'Save file',
+    openFile: 'Open file',
+    tabDefine: 'Define',
+    tabRoute: 'Route',
+    tabRun: 'Run'
+  },
+
+  /* --- stage 01, Define -------------------------------------------------- */
+  define: {
+    eyebrow: 'Stage 01',
+    heading: 'List what you have, what has to be done, and what gets built.',
+    intro: 'Items are the things work happens to. Work types are the operations you can run. Steps are assembly points: they hold finished items, and they can hold other steps when one assembly feeds the next. Click any name here to rename it.',
+
+    sheetTitlePlaceholder: 'Untitled runsheet',
+    sheetDescPlaceholder: 'Add a note — customer, order number, due date…',
+
+    itemsHeading: 'Items',
+    itemCodePlaceholder: 'CODE',
+    itemNamePlaceholder: 'Description',
+    itemsHint: 'Got a list already? Paste it into either box — one item per line, as <span class="mono">CODE, Name</span> — and they all get added at once.',
+    itemsEmptyTitle: 'No items yet',
+    itemsEmptyBody: 'Add the first part, panel or job number above.',
+    itemNeedsCode: 'Give the item a code',
+    itemOps_one: '{n} op',
+    itemOps_many: '{n} ops',
+    itemNoRoute: 'no route',
+
+    worksHeading: 'Work types',
+    workPlaceholder: 'e.g. Powder coat',
+    worksHint: "One entry per kind of work you'd set up for. Paste a list to add several at once. Order them the way they usually run — it breaks ties when two batches are equally good.",
+    worksEmptyTitle: 'No work types yet',
+    worksEmptyBody: 'Name the operations you run — cut, weld, paint.',
+
+    stepsHeading: 'Steps',
+    stepPlaceholder: 'e.g. Cabinet body',
+    stepsHint: 'Click items to attach them, and paste a list to add several steps at once. A step is clear to assemble once every item on it — and every sub-assembly inside it — has finished its route.',
+    stepsEmptyTitle: 'No steps yet',
+    stepsEmptyBody: 'Optional — add one for each assembly that waits on finished items. A step can hold other steps too.',
+    stepItemsLabel: 'Items',
+    stepSubsLabel: 'Sub-assemblies',
+    stepAddItemsFirst: 'Add items first.',
+    stepEmpty: 'empty',
+    stepItemCount_one: '{n} item',
+    stepItemCount_many: '{n} items',
+    stepSubCount_one: '{n} step',
+    stepSubCount_many: '{n} steps',
+    stepSubLoop: '{name} already contains this step',
+
+    addButton: 'Add',
+    renameTip: 'Rename',
+    saveEdit: 'Save',
+    cancelEdit: 'Cancel',
+    fieldCode: 'Code',
+    fieldDescription: 'Description',
+    fieldWorkName: 'Work type name',
+    fieldStepName: 'Step name',
+    removeItemTip: 'Remove item',
+    removeItemLabel: 'Remove {name}',
+    removeWorkTip: 'Remove work type',
+    removeStepTip: 'Remove step',
+    moveUpTip: 'Move up',
+    moveDownTip: 'Move down',
+    selectLabel: 'Select {name}',
+
+    /* the second click before anything is deleted */
+    confirmRemove: 'Remove',
+    confirmKeep: 'Keep',
+    warnItem: 'Remove <b>{name}</b>? That drops {list}.',
+    warnItemNothing: 'Remove <b>{name}</b>? Nothing else depends on it.',
+    warnItemOps_one: '{n} routed operation',
+    warnItemOps_many: '{n} routed operations',
+    warnItemTicked: ' ({n} already ticked off)',
+    warnItemSteps_one: 'its place on {n} step',
+    warnItemSteps_many: 'its place on {n} steps',
+    warnItemJoin: ' and ',
+    /* {a} routes, {b} operations */
+    warnWork: 'Remove <b>{name}</b>? It comes off {routes}, dropping {ops}{ticked}.',
+    warnWorkUnused: "Remove <b>{name}</b>? It isn't on any route yet.",
+    warnWorkRoutes_one: '{n} route',
+    warnWorkRoutes_many: '{n} routes',
+    warnWorkOps_one: '{n} operation',
+    warnWorkOps_many: '{n} operations',
+    warnWorkTicked: ' — {n} of them already ticked off',
+    warnStep: 'Remove <b>{name}</b>? Its items and sub-assemblies stay{parents}.',
+    warnStepParents_one: ', but it comes off {n} step',
+    warnStepParents_many: ', but it comes off {n} steps'
+  },
+
+  /* --- stage 02, Route --------------------------------------------------- */
+  route: {
+    eyebrow: 'Stage 02',
+    heading: 'Give each item its route: the work it needs, in the order it needs it.',
+    intro: 'Pick an item on the left, build its route on the right. Drag operations to reorder, or copy a finished route onto as many items as you like.',
+
+    nothingTitle: 'Nothing to route yet',
+    needItems: 'Add items on Define first.',
+    needWorks: 'Add work types on Define first.',
+
+    itemsHeading: 'Items',
+    selectAll: 'Select all',
+    selected: '{n} selected',
+    noRouteYet: 'no route yet',
+
+    routeFor: 'Route for',
+    copyToSelected: 'Copy to {n} selected',
+    clearRoute: 'Clear route',
+    routeLength_one: '{n} operation, run top to bottom. Drag a row, or use the arrows, to change the order.',
+    routeLength_many: '{n} operations, run top to bottom. Drag a row, or use the arrows, to change the order.',
+    routeEmptyLead: 'Nothing routed yet. Add the first operation below.',
+    alreadyTicked: ' <b>{n} already ticked off</b> — editing rolls progress back to fit.',
+    opsEmptyTitle: 'No operations yet',
+    opsEmptyBody: 'Pick one below, or copy a route from another item.',
+    removeOpTip: 'Remove operation',
+    removeOpLabel: 'Remove',
+
+    addLabel: 'Add an operation',
+    filterPlaceholder: 'Filter work types',
+    moveUpTip: 'Move up',
+    moveDownTip: 'Move down',
+    filterNoMatch: 'No work type matches that.',
+    repeatedOp: '{name} added again — a route can repeat an operation',
+
+    copyFromLabel: 'Copy a route from',
+    copyFromChoose: 'Choose an item…',
+    copyFromOption: '{name} · {n} ops',
+    copiedFrom: 'Copied the route from {name}',
+    copiedTo_one: 'Route copied to {n} item',
+    copiedTo_many: 'Route copied to {n} items',
+
+    /* the quiet tally under the two panels */
+    tallyCounts: '{ops} operations · {items} items · {works} work types',
+    tallyBareLabel: 'No work routed',
+    tallyBareNote: 'counts as finished',
+    tallySpareLabel: 'Not used yet'
+  },
+
+  /* --- stage 03, Run ----------------------------------------------------- */
+  run: {
+    eyebrow: 'Stage 03',
+    nothingHeading: 'The plan appears once items have routes.',
+    nothingTitle: 'No work to batch',
+    nothingBody: 'Go back to Route and map at least one operation — or start from the sample job in the library.',
+
+    batchesLeft: 'batches left',
+    /* {ops} operations, {items} items, {batches} setups, {ready} startable */
+    summary: '{ops} operations still to run on {items} items, grouped into {batches} setups. {ready} can start now.',
+    meterLabel: 'Work complete',
+    meterValue: '{done} / {total} · {pct}%',
+
+    urgentLabel: 'Urgent steps',
+    urgentNoSteps: 'No steps defined — batching is optimised purely for the fewest setups.',
+    urgentPrompt: 'Pick one and its items get pulled forward — splitting a batch if that clears the step sooner.',
+    /* {extra} added setups, {sooner} batches gained, {now}/{was} clear points */
+    urgentSplit: 'Split: {extra} to clear them at batch {now} instead of {was} — {sooner} sooner.',
+    urgentSplitExtra_one: '{n} extra setup',
+    urgentSplitExtra_many: '{n} extra setups',
+    urgentSplitSooner_one: '{n} batch',
+    urgentSplitSooner_many: '{n} batches',
+    urgentWhole: 'Nothing clears them before batch {n}, so the batches stay whole.',
+
+    allDoneTitle: 'Every operation is done.',
+    allDoneBody: 'All items are finished — steps below are clear to assemble.',
+
+    stampReady: 'Start now',
+    stampPartial: 'Part ready',
+    stampBlocked: 'Blocked',
+    stampDone: 'Done',
+
+    cardItems_one: '{n} item',
+    cardItems_many: '{n} items',
+    cardTicked: '{n} ticked off',
+    cardComplete: 'setup complete',
+    cardWaiting: 'waiting on {list}',
+    cardReadyNow: '{n} ready now',
+    cardMoreLater: '{n} more will need this later',
+    cardCoversAll: 'covers all remaining',
+    cardUrgent: '{n} urgent',
+    cardSeparator: ' · ',
+    markDone: 'Mark {n} done',
+    markDoneAside: 'or tick items one at a time',
+    tagAfter: 'after {name}',
+    untickTip: 'Put this back',
+    batchDone: '{name} batch marked done',
+    putBack: '{n} operations put back on {name}',
+    outOfOrder: 'Earlier work has to happen first',
+
+    stepsHeading: 'Steps',
+    stepsNone: 'No steps defined. Add them on Define to track what your finished items feed into.',
+    stepUrgentTip: 'Mark urgent',
+    stepNothing: 'Nothing attached',
+    stepClear: '✓ Clear to assemble',
+    stepClearAfter: 'Clear after batch {n}',
+    looseHeading: 'Not in any step',
+
+    progressFold: 'Item-by-item progress',
+    legendDone: 'done',
+    legendNow: 'next up',
+    legendWaiting: 'waiting',
+    legendHint: 'click to tick work off, or to put it back',
+    stripNoRoute: 'No route — counts as finished'
+  },
+
+  /* --- the library ------------------------------------------------------- */
+  library: {
+    eyebrow: 'Library',
+    heading: 'Every runsheet you have on this browser.',
+    headingEmpty: 'Nothing saved here yet.',
+    intro: 'Runsheets stay on this machine — nothing is uploaded. Save one to a file if you need it somewhere else.',
+
+    noStorage: 'This browser is blocking local storage, so sheets last only until you close the tab. Use <b>Save file</b> to keep your work.',
+    storageFull: 'This browser is out of storage — use Save file',
+
+    newSheet: 'New runsheet',
+    newFromSample: 'Start from the sample job',
+    openFile: 'Open a file',
+    savedCount: '{n} saved',
+
+    firstRunLead: 'A runsheet is one job.',
+    firstRunBody: 'The items it needs, the work each one takes, and the assemblies they feed — batched into as few setups as the job allows. Start an empty one, or open the worked example and take it apart.',
+
+    cardMeta: '{items} items · {works} work types · {steps} steps',
+    cardProgress: '{done} / {total} operations done · edited {when}',
+    cardContinue: 'Continue',
+    cardOpen: 'Open',
+    cardDuplicate: 'Duplicate',
+    cardSaveFile: 'Save file',
+    cardDelete: 'Delete',
+
+    warnSheet: 'Delete <b>{title}</b>? Its items, routes and ticked-off work go with it.',
+    confirmDelete: 'Delete',
+    confirmKeep: 'Keep',
+
+    copySuffix: '{title} (copy)',
+    copiedSheet: 'Copied to {title}',
+    savedFile: 'Saved {name}',
+    openedFile: 'Opened {name}',
+    badFile: "That file isn't a runsheet",
+
+    agoNever: 'never',
+    agoNow: 'just now',
+    agoMinutes: '{n} min ago',
+    agoHours: '{n} hr ago',
+    agoDays: '{n} days ago'
+  },
+
+  /* --- pasting lists ----------------------------------------------------- */
+  paste: {
+    items_one: '{n} item added',
+    items_many: '{n} items added',
+    works_one: '{n} work type added',
+    works_many: '{n} work types added',
+    steps_one: '{n} step added',
+    steps_many: '{n} steps added',
+    nothing: 'Nothing to add',
+    noCodes: 'No codes found in that list'
+  },
+
+  /* --- the worked example offered in the library ------------------------- */
+  sample: {
+    title: 'Sample job — steel cabinet',
+    description: 'A worked example: 11 parts, six work types, four assemblies.',
+    toast: 'Sample job loaded',
+    works: ['Cut', 'Machine', 'Weld', 'Deburr', 'Prime', 'Powder coat'],
+    items: [
+      ['FRM-01', 'Base frame rail, left'],
+      ['FRM-02', 'Base frame rail, right'],
+      ['FRM-03', 'Cross brace'],
+      ['PNL-01', 'Side panel, left'],
+      ['PNL-02', 'Side panel, right'],
+      ['PNL-03', 'Back panel'],
+      ['SHF-01', 'Shelf'],
+      ['DOR-01', 'Door skin, galvanised'],
+      ['DOR-02', 'Door frame, galvanised'],
+      ['HDL-01', 'Handle bracket'],
+      ['GSK-01', 'Gasket strip']
+    ],
+    steps: {
+      frame: 'Frame weld-up',
+      doors: 'Door assembly',
+      body: 'Cabinet body',
+      final: 'Final assembly'
+    }
+  }
+};
+
+/* ---- how the placeholders get filled in (no copy below this line) ---- */
+function t(str, vars) {
+  return String(str == null ? '' : str).replace(/\{(\w+)\}/g, (m, k) =>
+    (vars && vars[k] !== undefined) ? vars[k] : m);
+}
+/* picks the _one or _many line for a count, then fills {n} in */
+function tp(n, one, many, vars) {
+  const v = Object.assign({ n: n }, vars || {});
+  return t(Math.abs(n) === 1 ? one : many, v);
+}
+function copyAt(path) {
+  return path.split('.').reduce((o, k) => (o == null ? o : o[k]), COPY);
+}
+/* fills in the copy that sits in the page markup rather than in the code */
+function applyStaticCopy() {
+  document.title = COPY.app.documentTitle;
+  $$('[data-copy]').forEach(el => {
+    const v = copyAt(el.dataset.copy);
+    if (v != null) el.textContent = v;
+  });
+  $$('[data-copy-html]').forEach(el => {
+    const v = copyAt(el.dataset.copyHtml);
+    if (v != null) el.innerHTML = v;
+  });
+  $$('[data-copy-ph]').forEach(el => {
+    const v = copyAt(el.dataset.copyPh);
+    if (v != null) el.placeholder = v;
+  });
+}
 
 /* ============================================================
    Runsheet — state
@@ -893,7 +1241,10 @@ function batchState(b) {
   return 'blocked';
 }
 
-const STAMP = { ready: 'Start now', partial: 'Part ready', blocked: 'Blocked', done: 'Done' };
+const STAMP = () => ({
+  ready: COPY.run.stampReady, partial: COPY.run.stampPartial,
+  blocked: COPY.run.stampBlocked, done: COPY.run.stampDone
+});
 
 /* ============================================================
    Mutations
@@ -918,7 +1269,7 @@ function rollback(itemId, idx) {
   state.ledger.forEach(e => { e.ops = e.ops.filter(o => !(o.itemId === itemId && o.idx >= idx)); });
   state.ledger = state.ledger.filter(e => e.ops.length);
   render();
-  if (undone > 1) toast(undone + ' operations put back on ' + item(itemId).code);
+  if (undone > 1) toast(t(COPY.run.putBack, { n: undone, name: item(itemId).code }));
 }
 function cleanLedger() {
   state.ledger.forEach(e => {
@@ -941,16 +1292,19 @@ function toast(msg) {
 /* Deleting reaches further than it looks, so each one says what it will take
    with it and waits for a second click. */
 function deleteWarning(kind, id) {
+  const C = COPY.define;
   if (kind === 'item') {
     const it = item(id);
     if (!it) return '';
-    const ops = routeOf(id).length, t = prog(id);
+    const ops = routeOf(id).length, ticked = prog(id);
     const inSteps = state.steps.filter(s => ownItems(s).indexOf(id) > -1).length;
     const parts = [];
-    if (ops) parts.push(ops + ' routed operation' + (ops > 1 ? 's' : '') + (t ? ' (' + t + ' already ticked off)' : ''));
-    if (inSteps) parts.push('its place on ' + inSteps + ' step' + (inSteps > 1 ? 's' : ''));
-    return 'Remove <b>' + esc(it.code) + '</b>? ' +
-      (parts.length ? 'That drops ' + parts.join(' and ') + '.' : 'Nothing else depends on it.');
+    if (ops) parts.push(tp(ops, C.warnItemOps_one, C.warnItemOps_many) +
+      (ticked ? t(C.warnItemTicked, { n: ticked }) : ''));
+    if (inSteps) parts.push(tp(inSteps, C.warnItemSteps_one, C.warnItemSteps_many));
+    return parts.length
+      ? t(C.warnItem, { name: esc(it.code), list: parts.join(C.warnItemJoin) })
+      : t(C.warnItemNothing, { name: esc(it.code) });
   }
   if (kind === 'work') {
     const w = work(id);
@@ -961,16 +1315,22 @@ function deleteWarning(kind, id) {
       routeOf(it.id).forEach((x, i) => { if (x === id) { n++; if (i < prog(it.id)) ticked++; } });
       if (n) { uses += n; routes++; }
     });
-    return 'Remove <b>' + esc(w.name) + '</b>? ' + (uses
-      ? 'It comes off ' + routes + ' route' + (routes > 1 ? 's' : '') + ', dropping ' + uses +
-        ' operation' + (uses > 1 ? 's' : '') + (ticked ? ' — ' + ticked + ' of them already ticked off' : '') + '.'
-      : "It isn't on any route yet.");
+    return uses
+      ? t(C.warnWork, {
+          name: esc(w.name),
+          routes: tp(routes, C.warnWorkRoutes_one, C.warnWorkRoutes_many),
+          ops: tp(uses, C.warnWorkOps_one, C.warnWorkOps_many),
+          ticked: ticked ? t(C.warnWorkTicked, { n: ticked }) : ''
+        })
+      : t(C.warnWorkUnused, { name: esc(w.name) });
   }
   const s = step(id);
   if (!s) return '';
   const parents = state.steps.filter(p => subSteps(p).indexOf(id) > -1).length;
-  return 'Remove <b>' + esc(s.name) + '</b>? Its items and sub-assemblies stay' +
-    (parents ? ', but it comes off ' + parents + ' step' + (parents > 1 ? 's' : '') : '') + '.';
+  return t(C.warnStep, {
+    name: esc(s.name),
+    parents: parents ? tp(parents, C.warnStepParents_one, C.warnStepParents_many) : ''
+  });
 }
 
 function doDelete(kind, id) {
@@ -1003,12 +1363,13 @@ function confirmBar(kind, id, wide) {
   return '<div class="danger' + (wide ? ' danger--card' : '') + '">' +
     '<span class="danger__msg">' + deleteWarning(kind, id) + '</span>' +
     '<span class="row__spacer"></span>' +
-    '<button class="btn btn--sm btn--danger" data-do-del>Remove</button>' +
-    '<button class="btn btn--sm btn--ghost" data-keep>Keep</button>' +
+    '<button class="btn btn--sm btn--danger" data-do-del>' + esc(COPY.define.confirmRemove) + '</button>' +
+    '<button class="btn btn--sm btn--ghost" data-keep>' + esc(COPY.define.confirmKeep) + '</button>' +
   '</div>';
 }
 
 function renderDefine() {
+  const C = COPY.define;
   $('#count-items').textContent = state.items.length;
   $('#count-works').textContent = state.works.length;
   $('#count-steps').textContent = state.steps.length;
@@ -1022,22 +1383,21 @@ function renderDefine() {
     if (confirming('item', it.id)) return '<li class="row row--danger">' + confirmBar('item', it.id) + '</li>';
     if (editing('item', it.id)) {
       return '<li class="row row--edit">' +
-        '<input class="field field--mono" data-edit-code style="max-width:96px" value="' + esc(it.code) + '" aria-label="Code">' +
-        '<input class="field" data-edit-name value="' + esc(it.name) + '" aria-label="Description">' +
-        '<button class="btn btn--sm btn--solid" data-save-edit>Save</button>' +
-        '<button class="icon-btn" data-cancel-edit title="Cancel">✕</button>' +
+        '<input class="field field--mono" data-edit-code style="max-width:96px" value="' + esc(it.code) + '" aria-label="' + esc(C.fieldCode) + '">' +
+        '<input class="field" data-edit-name value="' + esc(it.name) + '" aria-label="' + esc(C.fieldDescription) + '">' +
+        editActions() +
       '</li>';
     }
     const n = routeOf(it.id).length;
     return '<li class="row">' +
-      '<button class="rowtext" data-edit-item="' + it.id + '" title="Rename">' +
+      '<button class="rowtext" data-edit-item="' + it.id + '" title="' + esc(C.renameTip) + '">' +
         '<span class="row__code">' + esc(it.code) + '</span>' +
         '<span class="row__name">' + esc(it.name) + '</span>' +
       '</button>' +
-      '<span class="row__ops">' + (n ? n + ' op' + (n > 1 ? 's' : '') : 'no route') + '</span>' +
-      '<button class="icon-btn" data-del-item="' + it.id + '" title="Remove item" aria-label="Remove ' + esc(it.code) + '">✕</button>' +
+      '<span class="row__ops">' + esc(n ? tp(n, C.itemOps_one, C.itemOps_many) : C.itemNoRoute) + '</span>' +
+      '<button class="icon-btn" data-del-item="' + it.id + '" title="' + esc(C.removeItemTip) + '" aria-label="' + esc(t(C.removeItemLabel, { name: it.code })) + '">✕</button>' +
     '</li>';
-  }).join('') : emptyBox('No items yet', 'Add the first part, panel or job number above.');
+  }).join('') : emptyBox(C.itemsEmptyTitle, C.itemsEmptyBody);
 
   const lw = $('#list-works');
   lw.innerHTML = state.works.length ? state.works.map((w, i) => {
@@ -1045,61 +1405,59 @@ function renderDefine() {
     if (editing('work', w.id)) {
       return '<li class="row row--edit">' +
         '<span class="row__ord">' + String(i + 1).padStart(2, '0') + '</span>' +
-        '<input class="field" data-edit-name value="' + esc(w.name) + '" aria-label="Work type name">' +
-        '<button class="btn btn--sm btn--solid" data-save-edit>Save</button>' +
-        '<button class="icon-btn" data-cancel-edit title="Cancel">✕</button>' +
+        '<input class="field" data-edit-name value="' + esc(w.name) + '" aria-label="' + esc(C.fieldWorkName) + '">' +
+        editActions() +
       '</li>';
     }
     return '<li class="row">' +
       '<span class="row__ord">' + String(i + 1).padStart(2, '0') + '</span>' +
-      '<button class="rowtext" data-edit-work="' + w.id + '" title="Rename">' +
+      '<button class="rowtext" data-edit-work="' + w.id + '" title="' + esc(C.renameTip) + '">' +
         '<span class="row__name" style="color:var(--ink);font-weight:600">' + esc(w.name) + '</span>' +
       '</button>' +
-      '<button class="icon-btn" data-move-work="' + w.id + '" data-dir="-1" title="Move up"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
-      '<button class="icon-btn" data-move-work="' + w.id + '" data-dir="1" title="Move down"' + (i === state.works.length - 1 ? ' disabled' : '') + '>↓</button>' +
-      '<button class="icon-btn" data-del-work="' + w.id + '" title="Remove work type">✕</button>' +
+      '<button class="icon-btn" data-move-work="' + w.id + '" data-dir="-1" title="' + esc(C.moveUpTip) + '"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
+      '<button class="icon-btn" data-move-work="' + w.id + '" data-dir="1" title="' + esc(C.moveDownTip) + '"' + (i === state.works.length - 1 ? ' disabled' : '') + '>↓</button>' +
+      '<button class="icon-btn" data-del-work="' + w.id + '" title="' + esc(C.removeWorkTip) + '">✕</button>' +
     '</li>';
-  }).join('') : emptyBox('No work types yet', 'Name the operations you run — cut, weld, paint.');
+  }).join('') : emptyBox(C.worksEmptyTitle, C.worksEmptyBody);
 
   const ls = $('#list-steps');
   ls.innerHTML = state.steps.length ? state.steps.map(st => {
     const chips = state.items.length
       ? state.items.map(it => '<button class="chip" data-step-item="' + st.id + '" data-item="' + it.id +
           '" aria-pressed="' + (ownItems(st).indexOf(it.id) > -1) + '">' + esc(it.code) + '</button>').join('')
-      : '<span class="hint" style="margin:0">Add items first.</span>';
+      : '<span class="hint" style="margin:0">' + esc(C.stepAddItemsFirst) + '</span>';
     const others = state.steps.filter(o => o.id !== st.id);
     const subs = others.map(o => {
       const on = subSteps(st).indexOf(o.id) > -1;
       const loop = !on && wouldLoop(st.id, o.id);
       return '<button class="chip chip--step" data-step-sub="' + st.id + '" data-sub="' + o.id + '"' +
-        ' aria-pressed="' + on + '"' + (loop ? ' disabled title="' + esc(o.name) + ' already contains this step"' : '') +
+        ' aria-pressed="' + on + '"' + (loop ? ' disabled title="' + esc(t(C.stepSubLoop, { name: o.name })) + '"' : '') +
         '>' + esc(o.name) + '</button>';
     }).join('');
     const counts = [];
-    if (ownItems(st).length) counts.push(ownItems(st).length + ' item' + (ownItems(st).length > 1 ? 's' : ''));
-    if (subSteps(st).length) counts.push(subSteps(st).length + ' step' + (subSteps(st).length > 1 ? 's' : ''));
+    if (ownItems(st).length) counts.push(tp(ownItems(st).length, C.stepItemCount_one, C.stepItemCount_many));
+    if (subSteps(st).length) counts.push(tp(subSteps(st).length, C.stepSubCount_one, C.stepSubCount_many));
     const head = editing('step', st.id)
       ? '<div class="stepcard__head row--edit">' +
-          '<input class="field" data-edit-name value="' + esc(st.name) + '" aria-label="Step name">' +
-          '<button class="btn btn--sm btn--solid" data-save-edit>Save</button>' +
-          '<button class="icon-btn" data-cancel-edit title="Cancel">✕</button>' +
+          '<input class="field" data-edit-name value="' + esc(st.name) + '" aria-label="' + esc(C.fieldStepName) + '">' +
+          editActions() +
         '</div>'
       : '<div class="stepcard__head">' +
-          '<button class="rowtext" data-edit-step="' + st.id + '" title="Rename">' +
+          '<button class="rowtext" data-edit-step="' + st.id + '" title="' + esc(C.renameTip) + '">' +
             '<span class="stepcard__name">' + esc(st.name) + '</span>' +
           '</button>' +
-          '<span class="row__ops">' + (counts.join(' · ') || 'empty') + '</span>' +
-          '<button class="icon-btn" data-del-step="' + st.id + '" title="Remove step">✕</button>' +
+          '<span class="row__ops">' + esc(counts.join(' · ') || C.stepEmpty) + '</span>' +
+          '<button class="icon-btn" data-del-step="' + st.id + '" title="' + esc(C.removeStepTip) + '">✕</button>' +
         '</div>';
     return '<div class="stepcard' + (confirming('step', st.id) ? ' stepcard--danger' : '') + '">' +
       (confirming('step', st.id) ? confirmBar('step', st.id, true) : '') + head +
-      '<div class="eyebrow" style="margin-bottom:5px">Items</div>' +
+      '<div class="eyebrow" style="margin-bottom:5px">' + esc(C.stepItemsLabel) + '</div>' +
       '<div class="chips">' + chips + '</div>' +
       (others.length
-        ? '<div class="eyebrow" style="margin:9px 0 5px">Sub-assemblies</div><div class="chips">' + subs + '</div>'
+        ? '<div class="eyebrow" style="margin:9px 0 5px">' + esc(C.stepSubsLabel) + '</div><div class="chips">' + subs + '</div>'
         : '') +
     '</div>';
-  }).join('') : emptyBox('No steps yet', 'Optional — add one for each assembly that waits on finished items. A step can hold other steps too.');
+  }).join('') : emptyBox(C.stepsEmptyTitle, C.stepsEmptyBody);
 
   if (ed) {
     const first = $('#view-define [data-edit-code], #view-define [data-edit-name]');
@@ -1129,16 +1487,19 @@ function commitEdit() {
   }
 }
 
-const emptyBox = (t, s) => '<div class="empty"><strong>' + t + '</strong>' + s + '</div>';
+const emptyBox = (title, body) => '<div class="empty"><strong>' + esc(title) + '</strong>' + esc(body) + '</div>';
+const editActions = () =>
+  '<button class="btn btn--sm btn--solid" data-save-edit>' + esc(COPY.define.saveEdit) + '</button>' +
+  '<button class="icon-btn" data-cancel-edit title="' + esc(COPY.define.cancelEdit) + '">✕</button>';
 
 /* ============================================================
    02 — Route
    ============================================================ */
 function renderRoute() {
+  const C = COPY.route;
   const host = $('#route-body');
   if (!state.items.length || !state.works.length) {
-    host.innerHTML = emptyBox('Nothing to route yet',
-      !state.items.length ? 'Add items on Define first.' : 'Add work types on Define first.');
+    host.innerHTML = emptyBox(C.nothingTitle, !state.items.length ? C.needItems : C.needWorks);
     return;
   }
   if (!item(state.focus)) state.focus = state.items[0].id;
@@ -1150,21 +1511,21 @@ function renderRoute() {
 
   const chain = id => {
     const r = routeOf(id);
-    return r.length ? r.map(w => esc(workName(w))).join(' → ') : '<em>no route yet</em>';
+    return r.length ? r.map(w => esc(workName(w))).join(' → ') : '<em>' + esc(C.noRouteYet) + '</em>';
   };
 
   let h = '<div class="routecols">';
 
   /* left: every item, with its route spelled out */
-  h += '<div class="panel"><div class="panel__head"><h2>Items</h2>' +
+  h += '<div class="panel"><div class="panel__head"><h2>' + esc(C.itemsHeading) + '</h2>' +
       '<span class="panel__count">' + state.items.length + '</span></div>' +
     '<div class="panel__body" style="padding:0">' +
       '<label class="selrow"><input type="checkbox" id="sel-all"' + (allPicked ? ' checked' : '') + '>' +
-        (picked.length ? picked.length + ' selected' : 'Select all') + '</label>' +
+        esc(picked.length ? t(C.selected, { n: picked.length }) : C.selectAll) + '</label>' +
       '<ul class="itemlist">' + state.items.map(it =>
         '<li class="ritem" aria-current="' + (it.id === f.id) + '">' +
           '<input type="checkbox" data-pick="' + it.id + '"' + (state.picked[it.id] ? ' checked' : '') +
-            ' aria-label="Select ' + esc(it.code) + '">' +
+            ' aria-label="' + esc(t(COPY.define.selectLabel, { name: it.code })) + '">' +
           '<button class="ritem__btn" data-focus="' + it.id + '">' +
             '<span class="ritem__code">' + esc(it.code) + '</span> ' +
             '<span class="ritem__nm">' + esc(it.name) + '</span>' +
@@ -1175,16 +1536,17 @@ function renderRoute() {
 
   /* right: the route sheet for the focused item */
   h += '<div class="panel"><div class="panel__head">' +
-      '<h2>Route for <span class="mono">' + esc(f.code) + '</span></h2>' +
+      '<h2>' + esc(C.routeFor) + ' <span class="mono">' + esc(f.code) + '</span></h2>' +
       '<span class="row__spacer"></span>' +
-      (picked.length ? '<button class="btn btn--sm" id="btn-apply-picked">Copy to ' + picked.length + ' selected</button>' : '') +
-      (route.length ? '<button class="btn btn--sm btn--ghost" id="btn-clear-route">Clear route</button>' : '') +
+      (picked.length ? '<button class="btn btn--sm" id="btn-apply-picked">' +
+        esc(t(C.copyToSelected, { n: picked.length })) + '</button>' : '') +
+      (route.length ? '<button class="btn btn--sm btn--ghost" id="btn-clear-route">' +
+        esc(C.clearRoute) + '</button>' : '') +
     '</div><div class="panel__body">';
 
   h += '<p class="hint" style="margin:0 0 11px">' +
-    (route.length ? route.length + ' operation' + (route.length > 1 ? 's' : '') + ', run top to bottom. Drag a row, or use the arrows, to change the order.'
-                  : 'Nothing routed yet. Add the first operation below.') +
-    (ticked ? ' <b>' + ticked + ' already ticked off</b> — editing rolls progress back to fit.' : '') +
+    (route.length ? esc(tp(route.length, C.routeLength_one, C.routeLength_many)) : esc(C.routeEmptyLead)) +
+    (ticked ? t(C.alreadyTicked, { n: ticked }) : '') +
     '</p>';
 
   h += route.length
@@ -1194,25 +1556,28 @@ function renderRoute() {
           '<span class="op__grip" aria-hidden="true">⣿</span>' +
           '<span class="op__name">' + esc(workName(w)) + '</span>' +
           '<span class="row__spacer"></span>' +
-          '<button class="icon-btn" data-move-op="' + i + '" data-dir="-1"' + (i === 0 ? ' disabled' : '') + ' title="Move up" aria-label="Move up">↑</button>' +
-          '<button class="icon-btn" data-move-op="' + i + '" data-dir="1"' + (i === route.length - 1 ? ' disabled' : '') + ' title="Move down" aria-label="Move down">↓</button>' +
-          '<button class="icon-btn" data-drop-op="' + i + '" title="Remove operation" aria-label="Remove">✕</button>' +
+          '<button class="icon-btn" data-move-op="' + i + '" data-dir="-1"' + (i === 0 ? ' disabled' : '') +
+            ' title="' + esc(C.moveUpTip) + '" aria-label="' + esc(C.moveUpTip) + '">↑</button>' +
+          '<button class="icon-btn" data-move-op="' + i + '" data-dir="1"' + (i === route.length - 1 ? ' disabled' : '') +
+            ' title="' + esc(C.moveDownTip) + '" aria-label="' + esc(C.moveDownTip) + '">↓</button>' +
+          '<button class="icon-btn" data-drop-op="' + i + '" title="' + esc(C.removeOpTip) +
+            '" aria-label="' + esc(C.removeOpLabel) + '">✕</button>' +
         '</li>').join('') + '</ol>'
-    : emptyBox('No operations yet', 'Pick one below, or copy a route from another item.');
+    : emptyBox(C.opsEmptyTitle, C.opsEmptyBody);
 
-  h += '<div class="eyebrow" style="margin:15px 0 7px">Add an operation</div>' +
+  h += '<div class="eyebrow" style="margin:15px 0 7px">' + esc(C.addLabel) + '</div>' +
     (state.works.length > 10
-      ? '<input class="field" id="work-filter" placeholder="Filter work types" value="' + esc(state.workFilter || '') + '" autocomplete="off" style="margin-bottom:8px;max-width:280px">'
+      ? '<input class="field" id="work-filter" placeholder="' + esc(C.filterPlaceholder) + '" value="' + esc(state.workFilter || '') + '" autocomplete="off" style="margin-bottom:8px;max-width:280px">'
       : '') +
     '<div class="chips" id="work-palette">' + paletteHTML(route) + '</div>';
 
   const others = state.items.filter(i => i.id !== f.id && routeOf(i.id).length);
   if (others.length) {
-    h += '<div class="copyrow"><span class="eyebrow">Copy a route from</span>' +
+    h += '<div class="copyrow"><span class="eyebrow">' + esc(C.copyFromLabel) + '</span>' +
       '<select class="field" id="copy-from" style="max-width:250px">' +
-      '<option value="">Choose an item…</option>' +
-      others.map(i => '<option value="' + i.id + '">' + esc(i.code) + ' · ' +
-        routeOf(i.id).length + ' ops</option>').join('') +
+      '<option value="">' + esc(C.copyFromChoose) + '</option>' +
+      others.map(i => '<option value="' + i.id + '">' +
+        esc(t(C.copyFromOption, { name: i.code, n: routeOf(i.id).length })) + '</option>').join('') +
       '</select></div>';
   }
 
@@ -1225,12 +1590,13 @@ function renderRoute() {
   const spare = state.works.filter(w => !used.has(w.id));
 
   h += '<div class="tally">' +
-    '<span>' + totalOps() + ' operations · ' + state.items.length + ' items · ' +
-      state.works.length + ' work types</span>' +
-    (bare.length ? '<span class="tally__group"><span class="tally__label">No work routed</span>' +
+    '<span>' + esc(t(C.tallyCounts, {
+      ops: totalOps(), items: state.items.length, works: state.works.length
+    })) + '</span>' +
+    (bare.length ? '<span class="tally__group"><span class="tally__label">' + esc(C.tallyBareLabel) + '</span>' +
       bare.map(i => '<button class="tally__chip" data-focus="' + i.id + '">' + esc(i.code) + '</button>').join('') +
-      '<span class="tally__note">counts as finished</span></span>' : '') +
-    (spare.length ? '<span class="tally__group"><span class="tally__label">Not used yet</span>' +
+      '<span class="tally__note">' + esc(C.tallyBareNote) + '</span></span>' : '') +
+    (spare.length ? '<span class="tally__group"><span class="tally__label">' + esc(C.tallySpareLabel) + '</span>' +
       spare.map(w => '<span class="tally__chip">' + esc(w.name) + '</span>').join('') + '</span>' : '') +
   '</div>';
 
@@ -1240,7 +1606,7 @@ function renderRoute() {
 function paletteHTML(route) {
   const q = (state.workFilter || '').toLowerCase();
   const list = state.works.filter(w => !q || w.name.toLowerCase().indexOf(q) > -1);
-  if (!list.length) return '<span class="hint" style="margin:0">No work type matches that.</span>';
+  if (!list.length) return '<span class="hint" style="margin:0">' + esc(COPY.route.filterNoMatch) + '</span>';
   return list.map(w =>
     '<button class="chip" data-add-work="' + w.id + '">' +
       (route.indexOf(w.id) > -1 ? '<span class="chip__mark">✓</span> ' : '') + esc(w.name) +
@@ -1256,11 +1622,12 @@ function fitProgress(id) {
    03 — Run
    ============================================================ */
 function renderRun() {
+  const C = COPY.run;
   const host = $('#run-body');
   if (!state.items.length || !totalOps()) {
-    host.innerHTML = '<div class="viewhead"><div class="eyebrow">Stage 03</div>' +
-      '<h1>The plan appears once items have routes.</h1></div>' +
-      emptyBox('No work to batch', 'Go back to Route and map at least one operation — or load the sample job from the top bar.');
+    host.innerHTML = '<div class="viewhead"><div class="eyebrow">' + esc(C.eyebrow) + '</div>' +
+      '<h1>' + esc(C.nothingHeading) + '</h1></div>' +
+      emptyBox(C.nothingTitle, C.nothingBody);
     return;
   }
 
@@ -1277,38 +1644,42 @@ function renderRun() {
   /* hero — the number that matters is how few setups are left */
   h += '<div class="hero">' +
     '<div><div class="hero__num">' + String(b.length).padStart(2, '0') + '</div>' +
-      '<div class="hero__unit">batches left</div></div>' +
-    '<p class="hero__eq">' + remaining + ' operations still to run on ' +
-      state.items.filter(i => !itemDone(i.id)).length + ' items, grouped into ' + b.length +
-      ' setups. ' + readyCount + ' can start now.</p>' +
+      '<div class="hero__unit">' + esc(C.batchesLeft) + '</div></div>' +
+    '<p class="hero__eq">' + esc(t(C.summary, {
+      ops: remaining, items: state.items.filter(i => !itemDone(i.id)).length,
+      batches: b.length, ready: readyCount
+    })) + '</p>' +
     '<div class="hero__meter">' +
-      '<div class="meter__label"><span>Work complete</span><span>' + done + ' / ' + total + ' · ' + pct + '%</span></div>' +
+      '<div class="meter__label"><span>' + esc(C.meterLabel) + '</span><span>' +
+        esc(t(C.meterValue, { done: done, total: total, pct: pct })) + '</span></div>' +
       '<div class="meter"><div class="meter__fill" style="width:' + pct + '%"></div></div>' +
     '</div>' +
   '</div>';
 
   /* control strip */
   const stepsExist = state.steps.length > 0;
-  let verdict = 'Pick one and its items get pulled forward — splitting a batch if that clears the step sooner.';
+  let verdict = C.urgentPrompt;
   if (state.priority.length) {
     const was = plan.baseline.batches.length, wasClear = plan.baseline.clear;
     if (plan.split) {
       const extra = b.length - was, sooner = wasClear - plan.clear;
-      verdict = 'Split: ' + extra + ' extra setup' + (extra > 1 ? 's' : '') + ' to clear them at batch ' +
-        String(plan.clear).padStart(2, '0') + ' instead of ' + String(wasClear).padStart(2, '0') +
-        ' — ' + sooner + ' batch' + (sooner > 1 ? 'es' : '') + ' sooner.';
+      verdict = t(C.urgentSplit, {
+        extra: tp(extra, C.urgentSplitExtra_one, C.urgentSplitExtra_many),
+        sooner: tp(sooner, C.urgentSplitSooner_one, C.urgentSplitSooner_many),
+        now: String(plan.clear).padStart(2, '0'),
+        was: String(wasClear).padStart(2, '0')
+      });
     } else {
-      verdict = 'Nothing clears them before batch ' + String(plan.clear).padStart(2, '0') +
-        ', so the batches stay whole.';
+      verdict = t(C.urgentWhole, { n: String(plan.clear).padStart(2, '0') });
     }
   }
   h += '<div class="control"><div class="control__row">' +
-    '<span class="eyebrow">Urgent steps</span>' +
+    '<span class="eyebrow">' + esc(C.urgentLabel) + '</span>' +
     (stepsExist
       ? '<div class="chips">' + state.steps.map(s =>
           '<button class="chip" data-prio="' + s.id + '" aria-pressed="' + (state.priority.indexOf(s.id) > -1) + '">' + esc(s.name) + '</button>').join('') + '</div>' +
-        '<span class="hint" style="margin:0;max-width:56ch">' + verdict + '</span>'
-      : '<span class="hint" style="margin:0">No steps defined — batching is optimised purely for the fewest setups.</span>') +
+        '<span class="hint" style="margin:0;max-width:56ch">' + esc(verdict) + '</span>'
+      : '<span class="hint" style="margin:0">' + esc(C.urgentNoSteps) + '</span>') +
     '</div></div>';
 
   /* Cards = setups already run (from the ledger) followed by planned ones.
@@ -1333,7 +1704,7 @@ function renderRun() {
 
   if (!b.length) {
     h += '<div class="empty" style="background:var(--go-tint);border-color:var(--go);border-style:solid">' +
-      '<strong>Every operation is done.</strong>All items are finished — steps below are clear to assemble.</div>';
+      '<strong>' + esc(C.allDoneTitle) + '</strong>' + esc(C.allDoneBody) + '</div>';
   }
 
   cards.forEach((batch, i) => {
@@ -1347,15 +1718,15 @@ function renderRun() {
     });
     const oneWait = st === 'blocked' && waits.length === 1;
     const count = batch.done.length + batch.ops.length;
-    const bits = [count + ' item' + (count > 1 ? 's' : '')];
-    if (batch.done.length && st !== 'done') bits.push(batch.done.length + ' ticked off');
-    if (st === 'done') bits.push('setup complete');
-    else if (st === 'blocked') bits.push('waiting on ' + esc(waits.join(', ')));
+    const bits = [tp(count, C.cardItems_one, C.cardItems_many)];
+    if (batch.done.length && st !== 'done') bits.push(t(C.cardTicked, { n: batch.done.length }));
+    if (st === 'done') bits.push(C.cardComplete);
+    else if (st === 'blocked') bits.push(t(C.cardWaiting, { list: waits.join(', ') }));
     else {
-      bits.push(rdy + ' ready now');
-      bits.push(batch.later ? batch.later + ' more will need this later' : 'covers all remaining');
+      bits.push(t(C.cardReadyNow, { n: rdy }));
+      bits.push(batch.later ? t(C.cardMoreLater, { n: batch.later }) : C.cardCoversAll);
     }
-    if (batch.urgent) bits.push(batch.urgent + ' urgent');
+    if (batch.urgent) bits.push(t(C.cardUrgent, { n: batch.urgent }));
 
     const tag = (o, done) => {
       const ready = !done && opReady(o);
@@ -1364,12 +1735,12 @@ function renderRun() {
       const waitOn = (done || ready || oneWait) ? '' : workName(routeOf(o.itemId)[prog(o.itemId)]);
       const urgent = state.priority.some(sid => stepItemSet(sid).has(o.itemId));
       const attrs = done
-        ? ' data-untick="' + o.itemId + '" data-idx="' + o.idx + '" title="Put this back"'
+        ? ' data-untick="' + o.itemId + '" data-idx="' + o.idx + '" title="' + esc(C.untickTip) + '"'
         : (ready ? ' data-tick="' + o.itemId + '" data-idx="' + o.idx + '"' : ' disabled');
       return '<button class="tag' + (urgent ? ' tag--prio' : '') + '" data-s="' +
         (done ? 'done' : (ready ? 'ready' : 'wait')) + '"' + attrs + '>' +
         (done || ready ? '<span class="tag__box">✓</span>' : '') + esc(it.code) +
-        (waitOn ? '<span class="tag__wait">after ' + esc(waitOn) + '</span>' : '') +
+        (waitOn ? '<span class="tag__wait">' + esc(t(C.tagAfter, { name: waitOn })) + '</span>' : '') +
         '</button>';
     };
 
@@ -1381,17 +1752,18 @@ function renderRun() {
       '<div class="runcard__main">' +
         '<div class="runcard__head"><div>' +
           '<h3 class="runcard__work">' + esc(workName(batch.workId)) + '</h3>' +
-          '<div class="runcard__meta">' + bits.join(' · ') + '</div>' +
+          '<div class="runcard__meta">' + esc(bits.join(C.cardSeparator)) + '</div>' +
         '</div>' +
-        '<span class="stamp" data-s="' + st + '">' + STAMP[st] + '</span>' +
+        '<span class="stamp" data-s="' + st + '">' + esc(STAMP()[st]) + '</span>' +
         '</div>' +
         '<div class="tags">' +
           batch.done.map(o => tag(o, true)).join('') +
           batch.ops.map(o => tag(o, false)).join('') +
         '</div>' +
         (rdy ? '<div class="runcard__foot">' +
-          '<button class="btn btn--sm" data-finish-batch="' + batch.planIndex + '">Mark ' + rdy + ' done</button>' +
-          '<span class="hint" style="margin:0">or tick items one at a time</span></div>' : '') +
+          '<button class="btn btn--sm" data-finish-batch="' + batch.planIndex + '">' +
+            esc(t(C.markDone, { n: rdy })) + '</button>' +
+          '<span class="hint" style="margin:0">' + esc(C.markDoneAside) + '</span></div>' : '') +
       '</div>' +
     '</div>';
   });
@@ -1399,9 +1771,9 @@ function renderRun() {
   h += '</div><div class="rail">';
 
   /* steps rail */
-  h += '<div class="eyebrow" style="margin-bottom:8px">Steps</div>';
+  h += '<div class="eyebrow" style="margin-bottom:8px">' + esc(C.stepsHeading) + '</div>';
   if (!state.steps.length) {
-    h += '<div class="empty">No steps defined. Add them on Define to track what your finished items feed into.</div>';
+    h += '<div class="empty">' + esc(C.stepsNone) + '</div>';
   } else {
     const depth = s => {
       let d = 0;
@@ -1417,13 +1789,13 @@ function renderRun() {
       h += '<div class="stepitem" data-ready="' + (ready ? 1 : 0) + '" data-prio="' + (state.priority.indexOf(s.id) > -1 ? 1 : 0) + '">' +
         '<div class="stepitem__head">' +
           '<span class="stepitem__name">' + esc(s.name) + '</span>' +
-          '<button class="star" data-prio="' + s.id + '" aria-pressed="' + (state.priority.indexOf(s.id) > -1) + '" title="Mark urgent">★</button>' +
+          '<button class="star" data-prio="' + s.id + '" aria-pressed="' + (state.priority.indexOf(s.id) > -1) + '" title="' + esc(C.stepUrgentTip) + '">★</button>' +
         '</div>' +
         '<div class="bar"><div class="bar__fill" style="width:' + (tot ? Math.round(dn / tot * 100) : 100) + '%"></div></div>' +
         '<div class="stepitem__when">' +
-          (!ids.length ? 'Nothing attached'
-            : ready ? '✓ Clear to assemble'
-            : 'Clear after batch ' + dispNum(when)) +
+          esc(!ids.length ? C.stepNothing
+            : ready ? C.stepClear
+            : t(C.stepClearAfter, { n: dispNum(when) })) +
         '</div>' +
         '<div class="stepitem__items">' +
           subSteps(s).map(sid => {
@@ -1444,7 +1816,7 @@ function renderRun() {
   const loose = state.items.filter(i => !state.steps.some(s => ownItems(s).indexOf(i.id) > -1));
   if (loose.length) {
     h += '<div class="stepitem" style="border-style:dashed">' +
-      '<div class="stepitem__head"><span class="stepitem__name" style="color:var(--ink-2)">Not in any step</span></div>' +
+      '<div class="stepitem__head"><span class="stepitem__name" style="color:var(--ink-2)">' + esc(C.looseHeading) + '</span></div>' +
       '<div class="stepitem__items">' + loose.map(i =>
         '<span class="pill" data-done="' + (itemDone(i.id) ? 1 : 0) + '">' + esc(i.code) + '</span>').join('') + '</div>' +
     '</div>';
@@ -1453,12 +1825,12 @@ function renderRun() {
   h += '</div></div>';
 
   /* per-item progress: each item's own route, in order */
-  h += '<details class="fold" id="fold-matrix"' + (foldOpen ? ' open' : '') + '><summary>Item-by-item progress</summary>' +
+  h += '<details class="fold" id="fold-matrix"' + (foldOpen ? ' open' : '') + '><summary>' + esc(C.progressFold) + '</summary>' +
     '<div class="legend">' +
-      '<span><i class="swatch" style="background:var(--go-tint);border-color:var(--go)"></i>done</span>' +
-      '<span><i class="swatch" style="box-shadow:inset 0 0 0 2px var(--blue);background:var(--white)"></i>next up</span>' +
-      '<span><i class="swatch" style="background-image:repeating-linear-gradient(45deg,transparent 0 3px,rgba(20,24,27,.18) 3px 6px)"></i>waiting</span>' +
-      '<span style="color:var(--ink-3)">click to tick work off, or to put it back</span>' +
+      '<span><i class="swatch" style="background:var(--go-tint);border-color:var(--go)"></i>' + esc(C.legendDone) + '</span>' +
+      '<span><i class="swatch" style="box-shadow:inset 0 0 0 2px var(--blue);background:var(--white)"></i>' + esc(C.legendNow) + '</span>' +
+      '<span><i class="swatch" style="background-image:repeating-linear-gradient(45deg,transparent 0 3px,rgba(20,24,27,.18) 3px 6px)"></i>' + esc(C.legendWaiting) + '</span>' +
+      '<span style="color:var(--ink-3)">' + esc(C.legendHint) + '</span>' +
     '</div>' +
     '<div class="panel"><div class="panel__body">' +
     state.items.map(it => {
@@ -1473,7 +1845,7 @@ function renderRun() {
             (s === 'wait' ? ' disabled' : ' data-track="' + it.id + '" data-idx="' + i + '"') + '>' +
             '<span class="n">' + String(i + 1).padStart(2, '0') + '</span>' + esc(workName(w)) +
             (s === 'done' ? ' ✓' : '') + '</button>';
-        }).join('') : '<span class="hint" style="margin:0">No route — counts as finished</span>') +
+        }).join('') : '<span class="hint" style="margin:0">' + esc(C.stripNoRoute) + '</span>') +
       '</div></div>';
     }).join('') +
     '</div></div></details>';
@@ -1534,7 +1906,7 @@ function loadStore() {
 function writeStore() {
   if (!canStore) return;
   try { localStorage.setItem(LS_KEY, JSON.stringify(store)); }
-  catch (err) { toast('This browser is out of storage — use Save file'); }
+  catch (err) { toast(COPY.library.storageFull); }
 }
 
 /* called after every change; only writes when the sheet really moved */
@@ -1596,9 +1968,11 @@ function duplicateSheet(id) {
   persist();
   const s = store.sheets.filter(x => x.id === id)[0];
   if (!s) return;
-  const copy = makeSheet((s.title || 'Untitled runsheet') + ' (copy)', s.description, JSON.parse(JSON.stringify(s.data)));
+  const copy = makeSheet(
+    t(COPY.library.copySuffix, { title: s.title || COPY.chrome.untitledSheet }),
+    s.description, JSON.parse(JSON.stringify(s.data)));
   writeStore();
-  toast('Copied to ' + copy.title);
+  toast(t(COPY.library.copiedSheet, { title: copy.title }));
   render();
 }
 function deleteSheet(id) {
@@ -1625,12 +1999,13 @@ function deleteSheet(id) {
 }
 
 function ago(ts) {
-  if (!ts) return 'never';
+  const C = COPY.library;
+  if (!ts) return C.agoNever;
   const s = (Date.now() - ts) / 1000;
-  if (s < 60) return 'just now';
-  if (s < 3600) return Math.round(s / 60) + ' min ago';
-  if (s < 86400) return Math.round(s / 3600) + ' hr ago';
-  if (s < 604800) return Math.round(s / 86400) + ' days ago';
+  if (s < 60) return C.agoNow;
+  if (s < 3600) return t(C.agoMinutes, { n: Math.round(s / 60) });
+  if (s < 86400) return t(C.agoHours, { n: Math.round(s / 3600) });
+  if (s < 604800) return t(C.agoDays, { n: Math.round(s / 86400) });
   return new Date(ts).toLocaleDateString();
 }
 function sheetStats(d) {
@@ -1648,30 +2023,29 @@ function sheetStats(d) {
    The library screen
    ============================================================ */
 function renderSheets() {
+  const C = COPY.library;
   const host = $('#sheets-body');
   const cur = currentSheet();
   if (cur) { cur.title = state.title; cur.description = state.description; cur.data = sheetData(); }
 
   const bare = !store.sheets.length;
-  let h = '<div class="viewhead"><div class="eyebrow">Library</div>' +
-    '<h1>' + (bare ? 'Nothing saved here yet.' : 'Every runsheet you have on this browser.') + '</h1>' +
-    '<p>Runsheets stay on this machine — nothing is uploaded. Save one to a file if you need it somewhere else.</p></div>';
+  let h = '<div class="viewhead"><div class="eyebrow">' + esc(C.eyebrow) + '</div>' +
+    '<h1>' + esc(bare ? C.headingEmpty : C.heading) + '</h1>' +
+    '<p>' + esc(C.intro) + '</p></div>';
 
   if (!canStore) {
-    h += '<div class="storenote"><span>⚠</span><span>This browser is blocking local storage, so sheets last only until you close the tab. ' +
-      'Use <b>Save file</b> to keep your work.</span></div>';
+    h += '<div class="storenote"><span>⚠</span><span>' + C.noStorage + '</span></div>';
   }
 
   const starters =
-    '<button class="btn btn--solid" data-new-sheet>New runsheet</button>' +
-    '<button class="btn btn--ghost" data-new-sample>Start from the sample job</button>' +
-    '<button class="btn btn--ghost" id="btn-import-2">Open a file</button>';
+    '<button class="btn btn--solid" data-new-sheet>' + esc(C.newSheet) + '</button>' +
+    '<button class="btn btn--ghost" data-new-sample>' + esc(C.newFromSample) + '</button>' +
+    '<button class="btn btn--ghost" id="btn-import-2">' + esc(C.openFile) + '</button>';
 
   if (bare) {
     h += '<div class="firstrun">' +
-      '<p class="firstrun__lead">A runsheet is one job.</p>' +
-      '<p class="firstrun__sub">The items it needs, the work each one takes, and the assemblies they feed — ' +
-      'batched into as few setups as the job allows. Start an empty one, or open the worked example and take it apart.</p>' +
+      '<p class="firstrun__lead">' + esc(C.firstRunLead) + '</p>' +
+      '<p class="firstrun__sub">' + esc(C.firstRunBody) + '</p>' +
       '<div class="firstrun__acts">' + starters + '</div>' +
     '</div>';
     host.innerHTML = h;
@@ -1680,7 +2054,7 @@ function renderSheets() {
 
   h += '<div class="toolbar">' + starters +
     '<span class="row__spacer"></span>' +
-    '<span class="eyebrow">' + store.sheets.length + ' saved</span>' +
+    '<span class="eyebrow">' + esc(t(C.savedCount, { n: store.sheets.length })) + '</span>' +
     '</div>';
 
   const sorted = store.sheets.slice().sort((a, b) => (b.updated || 0) - (a.updated || 0));
@@ -1690,28 +2064,30 @@ function renderSheets() {
     const open = s.id === store.active;
     if (state.confirm && state.confirm.kind === 'sheet' && state.confirm.id === s.id) {
       return '<div class="sheetcard sheetcard--danger">' +
-        '<div class="danger danger--card"><span class="danger__msg">Delete <b>' +
-          esc(s.title || 'Untitled runsheet') + '</b>? Its items, routes and ticked-off work go with it.</span>' +
+        '<div class="danger danger--card"><span class="danger__msg">' +
+          t(C.warnSheet, { title: esc(s.title || COPY.chrome.untitledSheet) }) + '</span>' +
           '<span class="row__spacer"></span>' +
-          '<button class="btn btn--sm btn--danger" data-do-del-sheet="' + s.id + '">Delete</button>' +
-          '<button class="btn btn--sm btn--ghost" data-keep-sheet>Keep</button>' +
+          '<button class="btn btn--sm btn--danger" data-do-del-sheet="' + s.id + '">' + esc(C.confirmDelete) + '</button>' +
+          '<button class="btn btn--sm btn--ghost" data-keep-sheet>' + esc(C.confirmKeep) + '</button>' +
         '</div></div>';
     }
     return '<div class="sheetcard" data-open="' + (open ? 1 : 0) + '">' +
-      '<h3 class="sheetcard__title">' + esc(s.title || 'Untitled runsheet') + '</h3>' +
+      '<h3 class="sheetcard__title">' + esc(s.title || COPY.chrome.untitledSheet) + '</h3>' +
       (s.description ? '<p class="sheetcard__desc">' + esc(s.description) + '</p>' : '') +
-      '<div class="sheetcard__meta">' +
-        (d.items || []).length + ' items · ' + (d.works || []).length + ' work types · ' +
-        (d.steps || []).length + ' steps</div>' +
+      '<div class="sheetcard__meta">' + esc(t(C.cardMeta, {
+        items: (d.items || []).length, works: (d.works || []).length, steps: (d.steps || []).length
+      })) + '</div>' +
       '<div class="sheetcard__bar"><i style="width:' + st.pct + '%"></i></div>' +
-      '<div class="sheetcard__meta">' + st.done + ' / ' + st.ops + ' operations done · edited ' + ago(s.updated) + '</div>' +
+      '<div class="sheetcard__meta">' + esc(t(C.cardProgress, {
+        done: st.done, total: st.ops, when: ago(s.updated)
+      })) + '</div>' +
       '<div class="sheetcard__acts">' +
-        (open ? '<button class="btn btn--sm btn--solid" data-continue>Continue</button>'
-              : '<button class="btn btn--sm btn--solid" data-open-sheet="' + s.id + '">Open</button>') +
+        (open ? '<button class="btn btn--sm btn--solid" data-continue>' + esc(C.cardContinue) + '</button>'
+              : '<button class="btn btn--sm btn--solid" data-open-sheet="' + s.id + '">' + esc(C.cardOpen) + '</button>') +
         '<span class="linkrow">' +
-          '<button class="linkbtn" data-dupe-sheet="' + s.id + '">Duplicate</button>' +
-          '<button class="linkbtn" data-save-sheet="' + s.id + '">Save file</button>' +
-          '<button class="linkbtn linkbtn--del" data-del-sheet="' + s.id + '">Delete</button>' +
+          '<button class="linkbtn" data-dupe-sheet="' + s.id + '">' + esc(C.cardDuplicate) + '</button>' +
+          '<button class="linkbtn" data-save-sheet="' + s.id + '">' + esc(C.cardSaveFile) + '</button>' +
+          '<button class="linkbtn linkbtn--del" data-del-sheet="' + s.id + '">' + esc(C.cardDelete) + '</button>' +
         '</span>' +
       '</div>' +
     '</div>';
@@ -1735,10 +2111,10 @@ function render() {
   $$('.view').forEach(v => v.classList.toggle('is-active', v.id === 'view-' + state.tab));
   $('#btn-sheets').setAttribute('aria-current', String(state.tab === 'sheets'));
   const inLib = state.tab === 'sheets';
-  const name = open ? (state.title || 'Untitled runsheet') : '';
+  const name = open ? (state.title || COPY.chrome.untitledSheet) : '';
   document.body.classList.toggle('mode-library', inLib);
-  $('#brand-sub').textContent = inLib ? 'library' : 'batch planner & work tracker';
-  $('#topbar-title').textContent = open ? name : 'Nothing open';
+  $('#brand-sub').textContent = inLib ? COPY.app.taglineLibrary : COPY.app.tagline;
+  $('#topbar-title').textContent = open ? name : COPY.chrome.nothingOpen;
   $('#topbar-title').classList.toggle('crumb--none', !open);
   $('#back-title').textContent = name;
   $('#btn-back').style.display = open ? '' : 'none';
@@ -1779,7 +2155,7 @@ function addItems() {
   const codeEl = $('#in-item-code'), nameEl = $('#in-item-name');
   const raw = nameEl.value.trim();
   const code = codeEl.value.trim() || raw.split(/\s+/)[0] || '';
-  if (!code) { toast('Give the item a code'); return; }
+  if (!code) { toast(COPY.define.itemNeedsCode); return; }
   const name = codeEl.value.trim() ? raw : raw.split(/\s+/).slice(1).join(' ');
   state.items.push({ id: uid('it'), code: code, name: name });
   codeEl.value = ''; nameEl.value = ''; codeEl.focus();
@@ -1793,7 +2169,7 @@ function pasteItems(e) {
   const n = addFromLines(txt);
   $('#in-item-code').value = ''; $('#in-item-name').value = '';
   render();
-  toast(n ? n + ' item' + (n > 1 ? 's' : '') + ' added' : 'No codes found in that list');
+  toast(n ? tp(n, COPY.paste.items_one, COPY.paste.items_many) : COPY.paste.noCodes);
 }
 function pasteList(e, kind) {
   const txt = ((e.clipboardData || window.clipboardData) || { getData: () => '' }).getData('text');
@@ -1806,8 +2182,11 @@ function pasteList(e, kind) {
   });
   e.target.value = '';
   render();
-  const label = kind === 'work' ? 'work type' : 'step';
-  toast(lines.length ? lines.length + ' ' + label + (lines.length > 1 ? 's' : '') + ' added' : 'Nothing to add');
+  toast(lines.length
+    ? (kind === 'work'
+        ? tp(lines.length, COPY.paste.works_one, COPY.paste.works_many)
+        : tp(lines.length, COPY.paste.steps_one, COPY.paste.steps_many))
+    : COPY.paste.nothing);
 }
 $('#in-item-code').addEventListener('paste', pasteItems);
 $('#in-item-name').addEventListener('paste', pasteItems);
@@ -1943,7 +2322,7 @@ $('#view-route').addEventListener('click', e => {
     r.push(w);
     state.routes[f] = r;
     renderRoute();
-    if (repeat) toast(workName(w) + ' added again — a route can repeat an operation');
+    if (repeat) toast(t(COPY.route.repeatedOp, { name: workName(w) }));
     return;
   }
   if (e.target.id === 'btn-clear-route') {
@@ -1955,7 +2334,7 @@ $('#view-route').addEventListener('click', e => {
     const r = routeOf(f).slice();
     const targets = state.items.filter(i => state.picked[i.id]);
     targets.forEach(i => { state.routes[i.id] = r.slice(); fitProgress(i.id); });
-    toast('Route copied to ' + targets.length + ' item' + (targets.length > 1 ? 's' : ''));
+    toast(tp(targets.length, COPY.route.copiedTo_one, COPY.route.copiedTo_many));
     return renderRoute();
   }
 });
@@ -1973,7 +2352,7 @@ $('#view-route').addEventListener('change', e => {
     if (!from) return;
     state.routes[state.focus] = routeOf(from).slice();
     fitProgress(state.focus);
-    toast('Copied the route from ' + item(from).code);
+    toast(t(COPY.route.copiedFrom, { name: item(from).code }));
     return renderRoute();
   }
 });
@@ -2040,7 +2419,7 @@ $('#view-run').addEventListener('click', e => {
     const b = plan.batches[Number(fin.dataset.finishBatch)];
     if (!b) return;
     b.ops.filter(opReady).forEach(o => { state.progress[o.itemId] = o.idx + 1; logOp(o.itemId, o.idx); });
-    toast(workName(b.workId) + ' batch marked done');
+    toast(t(COPY.run.batchDone, { name: workName(b.workId) }));
     return render();
   }
   const pr = e.target.closest('[data-prio]');
@@ -2054,7 +2433,7 @@ $('#view-run').addEventListener('click', e => {
     const id = tr.dataset.track, idx = Number(tr.dataset.idx), p = prog(id);
     if (idx === p) tickOp(id, idx);
     else if (idx < p) rollback(id, idx);
-    else toast('Earlier work has to happen first');
+    else toast(COPY.run.outOfOrder);
     return;
   }
 });
@@ -2077,7 +2456,7 @@ function saveFile(sheet) {
   a.download = slug(src.title) + '.json';
   a.click();
   URL.revokeObjectURL(a.href);
-  toast('Saved ' + a.download);
+  toast(t(COPY.library.savedFile, { name: a.download }));
 }
 $('#btn-export').addEventListener('click', () => { persist(); saveFile(null); });
 $('#btn-import').addEventListener('click', () => $('#file-input').click());
@@ -2093,41 +2472,47 @@ $('#file-input').addEventListener('change', e => {
         routes: d.routes || {}, progress: d.progress || {}, ledger: d.ledger || [],
         priority: d.priority || []
       });
-      toast('Opened ' + f.name);
-    } catch (err) { toast("That file isn't a runsheet"); }
+      toast(t(COPY.library.openedFile, { name: f.name }));
+    } catch (err) { toast(COPY.library.badFile); }
   };
   fr.readAsText(f);
   e.target.value = '';
 });
+/* The worked example. Names come from COPY.sample; the numbers below are
+   positions in those lists — which operation, and which items — so renaming
+   anything in the copy leaves the shape of the job intact. */
 function sampleData() {
-  const W = ['Cut', 'Machine', 'Weld', 'Deburr', 'Prime', 'Powder coat'].map(n => ({ id: uid('wk'), name: n }));
-  const wid = n => W[['Cut', 'Machine', 'Weld', 'Deburr', 'Prime', 'Powder coat'].indexOf(n)].id;
-  const defs = [
-    ['FRM-01', 'Base frame rail, left',  ['Cut', 'Machine', 'Weld', 'Deburr', 'Prime', 'Powder coat']],
-    ['FRM-02', 'Base frame rail, right', ['Cut', 'Machine', 'Weld', 'Deburr', 'Prime', 'Powder coat']],
-    ['FRM-03', 'Cross brace',            ['Cut', 'Weld', 'Deburr', 'Prime', 'Powder coat']],
-    ['PNL-01', 'Side panel, left',       ['Cut', 'Machine', 'Deburr', 'Prime', 'Powder coat']],
-    ['PNL-02', 'Side panel, right',      ['Cut', 'Machine', 'Deburr', 'Prime', 'Powder coat']],
-    ['PNL-03', 'Back panel',             ['Cut', 'Deburr', 'Prime', 'Powder coat']],
-    ['SHF-01', 'Shelf',                  ['Cut', 'Machine', 'Deburr', 'Prime', 'Powder coat']],
-    ['DOR-01', 'Door skin, galvanised',  ['Cut', 'Machine', 'Deburr', 'Powder coat']],
-    ['DOR-02', 'Door frame, galvanised', ['Cut', 'Weld', 'Deburr', 'Powder coat']],
-    ['HDL-01', 'Handle bracket',         ['Cut', 'Machine', 'Deburr', 'Powder coat']],
-    ['GSK-01', 'Gasket strip',           ['Cut']]
+  const S = COPY.sample;
+  const works = S.works.map(n => ({ id: uid('wk'), name: n }));
+  const ROUTES = [
+    [0, 1, 2, 3, 4, 5],   // frame rail, left
+    [0, 1, 2, 3, 4, 5],   // frame rail, right
+    [0, 2, 3, 4, 5],      // cross brace
+    [0, 1, 3, 4, 5],      // side panel, left
+    [0, 1, 3, 4, 5],      // side panel, right
+    [0, 3, 4, 5],         // back panel
+    [0, 1, 3, 4, 5],      // shelf
+    [0, 1, 3, 5],         // door skin
+    [0, 2, 3, 5],         // door frame
+    [0, 1, 3, 5],         // handle bracket
+    [0]                   // gasket strip
   ];
+  const GROUPS = { frame: [0, 1, 2], doors: [7, 8, 9], body: [3, 4, 5, 6], final: [10] };
+
   const items = [], routes = {};
-  defs.forEach(d => {
-    const it = { id: uid('it'), code: d[0], name: d[1] };
+  S.items.forEach((pair, i) => {
+    const it = { id: uid('it'), code: pair[0], name: pair[1] };
     items.push(it);
-    routes[it.id] = d[2].map(wid);
+    routes[it.id] = (ROUTES[i] || []).map(w => (works[w] || works[0]).id);
   });
-  const pick = codes => items.filter(i => codes.indexOf(i.code) > -1).map(i => i.id);
-  const frame = { id: uid('st'), name: 'Frame weld-up', itemIds: pick(['FRM-01', 'FRM-02', 'FRM-03']), stepIds: [] };
-  const doors = { id: uid('st'), name: 'Door assembly', itemIds: pick(['DOR-01', 'DOR-02', 'HDL-01']), stepIds: [] };
-  const body  = { id: uid('st'), name: 'Cabinet body',  itemIds: pick(['PNL-01', 'PNL-02', 'PNL-03', 'SHF-01']), stepIds: [frame.id] };
-  const final = { id: uid('st'), name: 'Final assembly', itemIds: pick(['GSK-01']), stepIds: [body.id, doors.id] };
+  const pick = idx => idx.map(i => items[i]).filter(Boolean).map(i => i.id);
+
+  const frame = { id: uid('st'), name: S.steps.frame, itemIds: pick(GROUPS.frame), stepIds: [] };
+  const doors = { id: uid('st'), name: S.steps.doors, itemIds: pick(GROUPS.doors), stepIds: [] };
+  const body  = { id: uid('st'), name: S.steps.body,  itemIds: pick(GROUPS.body),  stepIds: [frame.id] };
+  const final = { id: uid('st'), name: S.steps.final, itemIds: pick(GROUPS.final), stepIds: [body.id, doors.id] };
   return {
-    items: items, works: W, routes: routes, progress: {}, ledger: [], priority: [],
+    items: items, works: works, routes: routes, progress: {}, ledger: [], priority: [],
     steps: [frame, doors, body, final]
   };
 }
@@ -2139,10 +2524,10 @@ $('#view-define').addEventListener('input', e => {
   if (e.target.id === 'sheet-title') {
     state.title = e.target.value;
     const inLib = state.tab === 'sheets';
-  const name = open ? (state.title || 'Untitled runsheet') : '';
+  const name = open ? (state.title || COPY.chrome.untitledSheet) : '';
   document.body.classList.toggle('mode-library', inLib);
-  $('#brand-sub').textContent = inLib ? 'library' : 'batch planner & work tracker';
-  $('#topbar-title').textContent = open ? name : 'Nothing open';
+  $('#brand-sub').textContent = inLib ? COPY.app.taglineLibrary : COPY.app.tagline;
+  $('#topbar-title').textContent = open ? name : COPY.chrome.nothingOpen;
   $('#topbar-title').classList.toggle('crumb--none', !open);
   $('#back-title').textContent = name;
   $('#btn-back').style.display = open ? '' : 'none';
@@ -2160,7 +2545,11 @@ $('#view-sheets').addEventListener('click', e => {
     if (el) el.focus();
     return;
   }
-  if (t.closest('[data-new-sample]')) return newSheet('Sample job — steel cabinet', 'A worked example: 11 parts, six work types, four assemblies.', sampleData());
+  if (t.closest('[data-new-sample]')) {
+    newSheet(COPY.sample.title, COPY.sample.description, sampleData());
+    toast(COPY.sample.toast);
+    return;
+  }
   if (t.id === 'btn-import-2') return $('#file-input').click();
   if (t.closest('[data-keep-sheet]')) { state.confirm = null; return renderSheets(); }
   const dd = t.closest('[data-do-del-sheet]');
@@ -2179,6 +2568,7 @@ $('#view-sheets').addEventListener('click', e => {
 });
 
 /* boot: reopen whatever was last in front of you, or show an empty library */
+applyStaticCopy();
 loadStore();
 pruneBlank(store.active);
 if (!currentSheet()) {
