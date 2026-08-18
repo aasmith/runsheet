@@ -27,6 +27,8 @@
   --go:#1C6E48;
   --go-tint:#D7E7DD;
   --hold:#A26205;
+  --gold:#8A6A0B;
+  --gold-fill:#EAD08B;
   --hold-tint:#F2E3C4;
   --stop:#98301F;
   --stop-tint:#EFD8D3;
@@ -466,6 +468,13 @@ td.mx__cell{width:62px;background:var(--white)}
 .tag__box{width:13px;height:13px;border:1.5px solid var(--rule-2);border-radius:1px;flex:none;display:grid;place-items:center;font-size:10px;color:transparent}
 .tag__wait{font-weight:400;font-size:10px;color:var(--ink-3);letter-spacing:.02em}
 .tag__next{font-weight:700;font-size:10px;letter-spacing:.02em;opacity:.72}
+.tag--finished{background:var(--gold-fill);border-color:var(--gold);color:#4A3705}
+.tag--finished .tag__medal{font-size:11px;line-height:1;flex:none}
+.tag--finished .tag__next{opacity:.8;text-transform:uppercase;letter-spacing:.1em;font-size:9px;color:var(--gold)}
+.tag--finished:hover{background:var(--stop-tint);border-color:var(--stop);color:var(--stop)}
+.tag--finished:hover .tag__next{color:var(--stop)}
+.metahint{cursor:help;border-bottom:1px dotted var(--rule-2)}
+.metahint:hover{border-bottom-color:var(--ink-2);color:var(--ink)}
 .tag[data-s="ready"]{border-color:var(--ink)}
 .tag[data-s="ready"]:hover{background:var(--go-tint);border-color:var(--go);transform:translateY(-1px)}
 .tag[data-s="ready"]:hover .tag__box{border-color:var(--go);color:var(--go)}
@@ -772,7 +781,7 @@ const COPY = {
     warnItemSteps_one: 'its place on {n} step',
     warnItemSteps_many: 'its place on {n} steps',
     warnItemJoin: ' and ',
-    /* {a} routes, {b} operations */
+    /* {routes} and {ops} are counted phrases from the four lines below */
     warnWork: 'Remove <b>{name}</b>? It comes off {routes}, dropping {ops}{ticked}.',
     warnWorkUnused: "Remove <b>{name}</b>? It isn't on any route yet.",
     warnWorkRoutes_one: '{n} route',
@@ -871,9 +880,12 @@ const COPY = {
     cardComplete: 'setup complete',
     cardWaiting: 'waiting on {list}',
     cardReadyNow: '{n} ready now',
-    cardMoreLater: '{n} more will need this later',
-    cardCoversAll: 'covers all remaining',
+    cardMoreLater: '{n} more later',
+    cardMoreLaterTip: '{n} more items reach {name} after this setup, so it will have to be run again.',
+    /* shown only as a tip, on the item count, when this setup needs no repeat */
+    cardCoversAll: 'Covers every item that still needs this work.',
     cardUrgent: '{n} urgent',
+    cardUrgentTip: 'On a step you marked urgent: {list}',
     cardSeparator: ' · ',
     markDone: 'Mark {n} done',
     markDoneAside: 'or tick items one at a time',
@@ -882,6 +894,21 @@ const COPY = {
        tells whoever is holding the part where to send it. The arrow is part
        of the line and can be changed or dropped. */
     tagNext: '→ {name}',
+    /* an item whose route ends with the operation just ticked off — it can
+       come off the bench entirely */
+    tagFinished: 'finished',
+    /* the mark on a finished item. Any character, or '' for none — a flag 🏁
+       or a tick ✓ work just as well as the trophy. */
+    tagFinishedMark: '🏆',
+
+    /* Short phrases on the card's meta line. The ones with a matching …Tip
+       line show that tip on hover, so keep the phrase brief and put the
+       detail in the tip. */
+    cardFinishes_one: '{n} finishes here',
+    cardFinishes_many: '{n} finish here',
+    cardFinished_one: '{n} finished',
+    cardFinished_many: '{n} finished',
+    cardFinishesTip: 'Comes off the floor after this setup: {list}',
     untickTip: 'Put this back',
     batchDone: '{name} batch marked done',
     putBack: '{n} operations put back on {name}',
@@ -1493,6 +1520,9 @@ function commitEdit() {
 }
 
 const emptyBox = (title, body) => '<div class="empty"><strong>' + esc(title) + '</strong>' + esc(body) + '</div>';
+/* a meta-line phrase, with its detail on hover when there is one */
+const hint = (text, tip) =>
+  '<span class="metahint"' + (tip ? ' title="' + esc(tip) + '"' : '') + '>' + esc(text) + '</span>';
 const editActions = () =>
   '<button class="btn btn--sm btn--solid" data-save-edit>' + esc(COPY.define.saveEdit) + '</button>' +
   '<button class="icon-btn" data-cancel-edit title="' + esc(COPY.define.cancelEdit) + '">✕</button>';
@@ -1722,16 +1752,34 @@ function renderRun() {
       if (waits.indexOf(w) < 0) waits.push(w);
     });
     const oneWait = st === 'blocked' && waits.length === 1;
+    /* The meta line stays short: a phrase per fact, with the detail behind a
+       tooltip on the ones that have a list to show. */
+    const all = batch.done.concat(batch.ops);
+    const codes = ops => ops.map(o => (item(o.itemId) || {}).code).filter(Boolean).join(', ');
+    const finishers = all.filter(o => o.idx === routeOf(o.itemId).length - 1);
+    const urgents = all.filter(o => state.priority.some(sid => stepItemSet(sid).has(o.itemId)));
     const count = batch.done.length + batch.ops.length;
-    const bits = [tp(count, C.cardItems_one, C.cardItems_many)];
-    if (batch.done.length && st !== 'done') bits.push(t(C.cardTicked, { n: batch.done.length }));
-    if (st === 'done') bits.push(C.cardComplete);
-    else if (st === 'blocked') bits.push(t(C.cardWaiting, { list: waits.join(', ') }));
-    else {
-      bits.push(t(C.cardReadyNow, { n: rdy }));
-      bits.push(batch.later ? t(C.cardMoreLater, { n: batch.later }) : C.cardCoversAll);
+
+    const bits = [hint(tp(count, C.cardItems_one, C.cardItems_many),
+      (batch.later || st === 'done') ? '' : C.cardCoversAll)];
+    if (batch.done.length && st !== 'done') bits.push(esc(t(C.cardTicked, { n: batch.done.length })));
+    if (st === 'done') bits.push(esc(C.cardComplete));
+    else if (st === 'blocked') bits.push(esc(t(C.cardWaiting, { list: waits.join(', ') })));
+    else bits.push(esc(t(C.cardReadyNow, { n: rdy })));
+    if (batch.later) {
+      bits.push(hint(t(C.cardMoreLater, { n: batch.later }),
+        t(C.cardMoreLaterTip, { n: batch.later, name: workName(batch.workId) })));
     }
-    if (batch.urgent) bits.push(t(C.cardUrgent, { n: batch.urgent }));
+    if (finishers.length) {
+      bits.push(hint(
+        st === 'done'
+          ? tp(finishers.length, C.cardFinished_one, C.cardFinished_many)
+          : tp(finishers.length, C.cardFinishes_one, C.cardFinishes_many),
+        t(C.cardFinishesTip, { list: codes(finishers) })));
+    }
+    if (urgents.length) {
+      bits.push(hint(t(C.cardUrgent, { n: urgents.length }), t(C.cardUrgentTip, { list: codes(urgents) })));
+    }
 
     const tag = (o, done) => {
       const ready = !done && opReady(o);
@@ -1743,15 +1791,20 @@ function renderRun() {
       const nx = o.idx + 1;
       const sendTo = (done && nx < routeOf(o.itemId).length && nx >= prog(o.itemId))
         ? workName(routeOf(o.itemId)[nx]) : '';
+      /* nothing left on this item's route — it leaves the work area */
+      const finished = done && nx >= routeOf(o.itemId).length;
       const urgent = state.priority.some(sid => stepItemSet(sid).has(o.itemId));
       const attrs = done
         ? ' data-untick="' + o.itemId + '" data-idx="' + o.idx + '" title="' + esc(C.untickTip) + '"'
         : (ready ? ' data-tick="' + o.itemId + '" data-idx="' + o.idx + '"' : ' disabled');
-      return '<button class="tag' + (urgent ? ' tag--prio' : '') + '" data-s="' +
+      return '<button class="tag' + (urgent ? ' tag--prio' : '') + (finished ? ' tag--finished' : '') + '" data-s="' +
         (done ? 'done' : (ready ? 'ready' : 'wait')) + '"' + attrs + '>' +
-        (done || ready ? '<span class="tag__box">✓</span>' : '') + esc(it.code) +
+        (finished
+          ? (C.tagFinishedMark ? '<span class="tag__medal">' + esc(C.tagFinishedMark) + '</span>' : '')
+          : (done || ready ? '<span class="tag__box">✓</span>' : '')) + esc(it.code) +
         (waitOn ? '<span class="tag__wait">' + esc(t(C.tagAfter, { name: waitOn })) + '</span>' : '') +
         (sendTo ? '<span class="tag__next">' + esc(t(C.tagNext, { name: sendTo })) + '</span>' : '') +
+        (finished ? '<span class="tag__next">' + esc(C.tagFinished) + '</span>' : '') +
         '</button>';
     };
 
@@ -1763,7 +1816,7 @@ function renderRun() {
       '<div class="runcard__main">' +
         '<div class="runcard__head"><div>' +
           '<h3 class="runcard__work">' + esc(workName(batch.workId)) + '</h3>' +
-          '<div class="runcard__meta">' + esc(bits.join(C.cardSeparator)) + '</div>' +
+          '<div class="runcard__meta">' + bits.join(esc(C.cardSeparator)) + '</div>' +
         '</div>' +
         '<span class="stamp" data-s="' + st + '">' + esc(STAMP()[st]) + '</span>' +
         '</div>' +
@@ -2416,6 +2469,9 @@ $('#view-route').addEventListener('dragend', () => {
 
 /* -- run -- */
 $('#view-run').addEventListener('click', e => {
+  /* the meta-line tips are hover-only, so a tap says the same thing */
+  const mh = e.target.closest('.metahint[title]');
+  if (mh) { toast(mh.getAttribute('title')); return; }
   const tick = e.target.closest('[data-tick]');
   if (tick) {
     const id = tick.dataset.tick;
