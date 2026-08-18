@@ -1,0 +1,2127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Runsheet — batch planner &amp; work tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Azeret+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   RUNSHEET — tokens
+   concrete ground, drafting blue, andon semantics (go/hold/stop)
+   ============================================================ */
+:root{
+  --ground:#D9DCD6;
+  --panel:#F2F3EF;
+  --panel-2:#E7E9E3;
+  --white:#FBFBF9;
+  --ink:#14181B;
+  --ink-2:#565E60;
+  --ink-3:#8B928F;
+  --rule:#C3C8C0;
+  --rule-2:#ABB2A9;
+  --blue:#22409A;
+  --blue-tint:#DEE3F4;
+  --go:#1C6E48;
+  --go-tint:#D7E7DD;
+  --hold:#A26205;
+  --hold-tint:#F2E3C4;
+  --stop:#98301F;
+  --stop-tint:#EFD8D3;
+  --display:'Archivo', 'Helvetica Neue', system-ui, sans-serif;
+  --mono:'Azeret Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --sp:8px;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:var(--display);
+  color:var(--ink);
+  background-color:var(--ground);
+  background-image:
+    linear-gradient(rgba(20,24,27,.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(20,24,27,.045) 1px, transparent 1px);
+  background-size:26px 26px;
+  font-size:15px;
+  line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+}
+button{font-family:inherit;color:inherit}
+input,select,textarea{font-family:inherit;font-size:14px;color:var(--ink)}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+
+/* ---------- shared atoms ---------- */
+.mono{font-family:var(--mono)}
+.eyebrow{
+  font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--ink-3);
+}
+.btn{
+  font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;background:var(--white);border:1.5px solid var(--ink);
+  padding:7px 12px;border-radius:2px;cursor:pointer;line-height:1;
+  transition:background .12s ease, color .12s ease, transform .06s ease;
+}
+.btn:hover{background:var(--ink);color:var(--panel)}
+.btn:active{transform:translateY(1px)}
+.btn--solid{background:var(--ink);color:var(--panel)}
+.btn--solid:hover{background:var(--blue);border-color:var(--blue)}
+.btn--ghost{border-color:var(--rule-2);color:var(--ink-2);background:transparent}
+.btn--ghost:hover{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.btn--sm{padding:5px 8px;font-size:10px}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btn:disabled:hover{background:var(--white);color:var(--ink)}
+.icon-btn{
+  border:1px solid transparent;background:none;cursor:pointer;color:var(--ink-3);
+  width:24px;height:24px;border-radius:2px;font-size:14px;line-height:1;padding:0;
+}
+.icon-btn:hover{color:var(--stop);border-color:var(--rule-2);background:var(--white)}
+.field{
+  border:1.5px solid var(--rule-2);background:var(--white);border-radius:2px;
+  padding:7px 9px;width:100%;
+}
+.field:focus{border-color:var(--blue);outline:none}
+.field--mono{font-family:var(--mono);font-size:13px}
+
+/* ---------- top bar ---------- */
+.topbar{
+  position:sticky;top:0;z-index:40;
+  display:flex;align-items:stretch;gap:18px;flex-wrap:wrap;
+  background:var(--panel);border-bottom:1.5px solid var(--ink);
+  padding:0 20px;
+}
+.brand{display:flex;align-items:center;gap:10px;padding:14px 0}
+.brand__mark{
+  width:26px;height:26px;border:1.5px solid var(--ink);border-radius:2px;
+  display:grid;place-items:center;font-size:13px;background:var(--ink);color:var(--panel);
+}
+.brand__name{font-weight:800;letter-spacing:-.02em;font-size:19px}
+.brand__sub{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+.tabs{display:flex;gap:2px;margin-left:auto;align-self:flex-end}
+.tab{
+  background:none;border:0;border-bottom:3px solid transparent;cursor:pointer;
+  font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-3);padding:12px 14px 11px;
+}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--blue)}
+.tab__n{color:var(--rule-2);margin-right:6px}
+.tab[aria-selected="true"] .tab__n{color:var(--blue)}
+.topbar__tools{display:flex;align-items:center;gap:6px;padding:12px 0}
+
+.sheetpick{
+  display:flex;align-items:center;gap:8px;background:none;border:0;border-left:1px solid var(--rule);
+  padding:0 16px;margin:10px 0;cursor:pointer;max-width:340px;min-width:0;
+}
+.sheetpick:hover .sheetpick__name{text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px}
+.sheetpick__label{
+  font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink-3);flex:none;
+}
+.sheetpick__name{
+  font-weight:700;font-size:14px;letter-spacing:-.01em;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;min-width:0;
+}
+.sheetpick__caret{color:var(--ink-3);font-size:10px;flex:none}
+.tab--sheets[aria-selected="true"]{color:var(--ink)}
+
+/* ---------- sheet header on define ---------- */
+.sheethead{margin:0 0 20px;padding-bottom:14px;border-bottom:1.5px solid var(--ink)}
+.sheethead__title{
+  display:block;width:100%;border:0;background:none;padding:2px 0;
+  font-family:var(--display);font-size:30px;font-weight:800;letter-spacing:-.025em;color:var(--ink);
+}
+.sheethead__title::placeholder{color:var(--rule-2)}
+.sheethead__desc{
+  display:block;width:100%;border:0;background:none;padding:3px 0 0;
+  font-size:13.5px;color:var(--ink-2);
+}
+.sheethead__desc::placeholder{color:var(--ink-3)}
+.sheethead__title:focus,.sheethead__desc:focus{outline:none;background:var(--blue-tint)}
+
+/* ---------- library ---------- */
+.sheetgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:14px}
+.sheetcard{
+  background:var(--panel);border:1px solid var(--rule);border-radius:3px;padding:14px;
+  box-shadow:3px 3px 0 rgba(20,24,27,.05);display:flex;flex-direction:column;gap:9px;
+}
+.sheetcard[data-open="1"]{border:1.5px solid var(--ink);box-shadow:4px 4px 0 rgba(20,24,27,.09);background:var(--white)}
+.sheetcard--danger{border-color:var(--stop)}
+.sheetcard__title{font-size:16px;font-weight:700;letter-spacing:-.01em;margin:0;line-height:1.25}
+.sheetcard__desc{font-size:12.5px;color:var(--ink-2);margin:0;line-height:1.45}
+.sheetcard__meta{font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.04em;text-transform:uppercase;font-weight:700}
+.sheetcard__bar{height:4px;background:var(--white);border:1px solid var(--rule-2);border-radius:2px;overflow:hidden}
+.sheetcard__bar i{display:block;height:100%;background:var(--go)}
+.sheetcard__acts{display:flex;gap:5px;flex-wrap:wrap;margin-top:auto;padding-top:3px}
+.openflag{
+  font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--go);border:1.5px solid var(--go);border-radius:2px;padding:4px 7px;
+}
+.storenote{
+  display:flex;gap:8px;align-items:flex-start;background:var(--hold-tint);border:1px solid var(--hold);
+  border-radius:2px;padding:9px 11px;font-size:12.5px;color:#5E3A02;margin-bottom:14px;max-width:70ch;
+}
+
+/* ---------- layout ---------- */
+main{max-width:1320px;margin:0 auto;padding:24px 20px 90px}
+.view{display:none}
+.view.is-active{display:block}
+.viewhead{margin:0 0 18px}
+.viewhead h1{font-size:15px;font-weight:700;margin:4px 0 0;letter-spacing:-.01em}
+.viewhead p{margin:2px 0 0;color:var(--ink-2);font-size:13px;max-width:62ch}
+
+.cols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;align-items:start}
+.panel{
+  background:var(--panel);border:1px solid var(--rule);border-radius:3px;
+  box-shadow:3px 3px 0 rgba(20,24,27,.05);
+}
+.panel__head{
+  display:flex;align-items:center;gap:8px;
+  padding:11px 14px;border-bottom:1px solid var(--rule);
+}
+.panel__head h2{font-size:13px;font-weight:700;margin:0;letter-spacing:.01em}
+.panel__count{
+  margin-left:auto;font-family:var(--mono);font-size:11px;font-weight:700;
+  color:var(--ink-3);
+}
+.panel__body{padding:12px 14px 14px}
+.addrow{display:flex;gap:6px;margin-bottom:12px}
+.addrow .field{flex:1;min-width:0}
+
+/* ---------- lists ---------- */
+.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
+.row{
+  display:flex;align-items:center;gap:9px;background:var(--white);
+  border:1px solid var(--rule);border-radius:2px;padding:7px 8px 7px 10px;
+}
+.row__code{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:-.01em}
+.row__name{font-size:13px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row__spacer{margin-left:auto}
+.rowtext{
+  flex:1;min-width:0;display:flex;align-items:center;gap:9px;overflow:hidden;
+  background:none;border:0;padding:0;margin:0;font:inherit;text-align:left;cursor:text;
+}
+.rowtext:hover .row__code,.rowtext:hover .row__name,.rowtext:hover .stepcard__name{text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px}
+.btn--danger{background:var(--stop);border-color:var(--stop);color:var(--white)}
+.btn--danger:hover{background:var(--ink);border-color:var(--ink);color:var(--panel)}
+.row--danger{display:block;background:var(--stop-tint);border-color:var(--stop);padding:9px 10px}
+.stepcard--danger{border-color:var(--stop)}
+.danger{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.danger--card{background:var(--stop-tint);border:1px solid var(--stop);border-radius:2px;padding:9px 10px;margin-bottom:9px}
+.danger__msg{flex:1 1 100%;font-size:12.5px;line-height:1.45;color:#5C2018;margin-bottom:7px}
+.danger__msg b{font-family:var(--mono);font-weight:700}
+.row--edit{gap:6px;padding:5px 6px 5px 8px;background:var(--blue-tint);border-color:var(--blue)}
+.row--edit .field{flex:1;min-width:0}
+.stepcard__head.row--edit{border-radius:2px;padding:6px;margin:-2px -2px 8px}
+.row__ord{
+  font-family:var(--mono);font-size:11px;font-weight:700;color:var(--ink-3);
+  width:20px;text-align:right;flex:none;
+}
+.row__ops{font-family:var(--mono);font-size:10px;color:var(--ink-3);white-space:nowrap}
+.empty{
+  border:1.5px dashed var(--rule-2);border-radius:3px;padding:16px;text-align:center;
+  color:var(--ink-2);font-size:13px;
+}
+.empty strong{display:block;font-size:13px;color:var(--ink);margin-bottom:3px}
+.hint{font-size:12px;color:var(--ink-3);margin:10px 0 0;line-height:1.5}
+
+/* ---------- chips ---------- */
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{
+  font-family:var(--mono);font-size:11px;font-weight:500;
+  border:1px solid var(--rule-2);background:var(--white);color:var(--ink-2);
+  border-radius:2px;padding:4px 7px;cursor:pointer;line-height:1.2;
+  transition:background .1s ease,color .1s ease,border-color .1s ease;
+}
+.chip:hover{border-color:var(--ink)}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--panel);font-weight:700}
+.chip--seq[aria-pressed="true"]{background:var(--blue);border-color:var(--blue)}
+.chip--step{border-style:dashed}
+.chip--step[aria-pressed="true"]{background:var(--blue);border-color:var(--blue);border-style:solid}
+.chip--step:disabled{opacity:.35;cursor:not-allowed}
+.chip--step:disabled:hover{border-color:var(--rule-2)}
+
+/* ---------- step cards (define) ---------- */
+.stepcard{background:var(--white);border:1px solid var(--rule);border-radius:2px;padding:10px;margin-bottom:8px}
+.stepcard__head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.stepcard__name{font-weight:700;font-size:13px}
+
+/* ---------- route sheet (stage 02) ---------- */
+.routecols{display:grid;grid-template-columns:minmax(250px,.85fr) minmax(0,1.25fr);gap:16px;align-items:start}
+.selrow{
+  display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--rule);
+  font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-2);cursor:pointer;background:var(--panel-2);
+}
+.itemlist{list-style:none;margin:0;padding:0;max-height:62vh;overflow-y:auto}
+.ritem{display:flex;align-items:center;gap:2px;border-bottom:1px solid var(--rule);background:var(--panel)}
+.ritem:last-child{border-bottom:0}
+.ritem > input{margin:0 0 0 12px;flex:none}
+.ritem[aria-current="true"]{background:var(--white);box-shadow:inset 3px 0 0 var(--blue)}
+.ritem__btn{
+  flex:1;min-width:0;text-align:left;background:none;border:0;cursor:pointer;
+  padding:9px 12px 10px 10px;font:inherit;
+}
+.ritem__btn:hover .ritem__code{text-decoration:underline}
+.ritem__code{font-family:var(--mono);font-size:12px;font-weight:700}
+.ritem__nm{font-size:12px;color:var(--ink-2)}
+.chain{
+  display:block;font-family:var(--mono);font-size:10.5px;color:var(--ink-3);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px;
+}
+.chain em{font-style:normal;color:var(--hold)}
+.oplist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.op{
+  display:flex;align-items:center;gap:9px;background:var(--white);
+  border:1.5px solid var(--rule-2);border-radius:2px;padding:0 6px 0 0;cursor:grab;
+}
+.op:hover{border-color:var(--ink)}
+.op__no{
+  font-family:var(--mono);font-size:11px;font-weight:700;color:var(--panel);background:var(--ink);
+  padding:11px 9px;display:flex;align-items:center;flex:none;
+}
+.op__grip{color:var(--rule-2);font-size:11px;letter-spacing:-2px;flex:none;cursor:grab}
+.op__name{font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.op.is-drag{opacity:.35}
+.op.is-over{border-color:var(--blue);box-shadow:0 -3px 0 -1px var(--blue)}
+.op.is-over-after{border-color:var(--blue);box-shadow:0 3px 0 -1px var(--blue)}
+.tally{
+  display:flex;flex-wrap:wrap;align-items:center;gap:7px 20px;
+  margin-top:15px;padding-top:12px;border-top:1px dashed var(--rule-2);
+  font-family:var(--mono);font-size:10.5px;color:var(--ink-3);letter-spacing:.02em;
+}
+.tally__group{display:flex;flex-wrap:wrap;align-items:center;gap:4px}
+.tally__label{
+  letter-spacing:.11em;text-transform:uppercase;font-weight:700;color:var(--ink-2);margin-right:3px;
+}
+.tally__chip{
+  font:inherit;border:1px solid var(--rule-2);border-radius:2px;padding:2px 5px;
+  background:var(--panel);color:var(--ink-2);
+}
+button.tally__chip{cursor:pointer}
+button.tally__chip:hover{border-color:var(--ink);color:var(--ink);background:var(--white)}
+.tally__note{margin-left:2px}
+.copyrow select.field{font-family:var(--mono);font-size:12px;padding:6px 8px}
+.copyrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:16px;padding-top:13px;border-top:1px dashed var(--rule-2)}
+.chip__mark{color:var(--go)}
+
+/* ---------- run: per-item route strips ---------- */
+.strip{display:grid;grid-template-columns:190px minmax(0,1fr);gap:10px;align-items:start;padding:8px 0;border-bottom:1px solid var(--rule)}
+.strip:last-child{border-bottom:0}
+.strip__id{display:flex;flex-direction:column;gap:1px;padding-top:3px;min-width:0}
+.strip__ops{display:flex;flex-wrap:wrap;gap:4px}
+.ostep{
+  font-family:var(--mono);font-size:11px;font-weight:700;border:1.5px solid var(--rule-2);
+  background:var(--white);border-radius:2px;padding:5px 8px;cursor:pointer;line-height:1;
+  display:inline-flex;align-items:center;gap:6px;
+}
+.ostep .n{color:var(--ink-3);font-weight:400}
+.ostep[data-s="done"]{background:var(--go-tint);border-color:var(--go);color:var(--go)}
+.ostep[data-s="done"]:hover{background:var(--stop-tint);border-color:var(--stop);color:var(--stop)}
+.ostep[data-s="now"]{border-color:var(--blue);color:var(--blue);box-shadow:inset 0 0 0 1px var(--blue)}
+.ostep[data-s="wait"]{
+  color:var(--ink-3);border-style:dashed;cursor:default;
+  background-image:repeating-linear-gradient(45deg,transparent 0 4px,rgba(20,24,27,.05) 4px 8px);
+}
+
+/* ---------- route matrix ---------- */
+.mxwrap{overflow-x:auto;background:var(--panel);border:1px solid var(--rule);border-radius:3px;box-shadow:3px 3px 0 rgba(20,24,27,.05)}
+table.mx{border-collapse:separate;border-spacing:0;width:100%;font-size:13px}
+table.mx th,table.mx td{border-bottom:1px solid var(--rule);border-right:1px solid var(--rule);padding:0}
+table.mx th:last-child,table.mx td:last-child{border-right:0}
+table.mx tr:last-child td{border-bottom:0}
+.mx thead th{
+  position:sticky;top:0;background:var(--panel-2);z-index:2;
+  font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ink-2);padding:10px 6px;text-align:center;
+  border-bottom:1.5px solid var(--ink);vertical-align:bottom;
+}
+.mx thead th.mx__corner{text-align:left;padding-left:14px;background:var(--panel-2)}
+.mx td.mx__item{padding:7px 10px 7px 14px;background:var(--panel);min-width:210px}
+.mx__item-inner{display:flex;align-items:center;gap:8px}
+.mx__code{font-family:var(--mono);font-size:12px;font-weight:700}
+.mx__nm{font-size:12px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cell{
+  width:62px;height:40px;text-align:center;cursor:pointer;background:var(--white);
+  font-family:var(--mono);font-size:12px;font-weight:700;color:var(--ink-3);
+  border:0;display:block;margin:0;padding:0;
+}
+td.mx__cell{width:62px;background:var(--white)}
+.cell:hover{background:var(--blue-tint)}
+.cell[data-on="1"]{background:var(--ink);color:var(--panel)}
+.cell[data-on="1"]:hover{background:var(--stop)}
+.cell .plus{opacity:0;font-weight:400;font-size:14px}
+.cell:hover .plus{opacity:.5}
+.mx__sel{width:34px;text-align:center}
+.mx tbody tr:hover td.mx__item{background:var(--panel-2)}
+
+/* tracker mode cells */
+.cell[data-s="done"]{background:var(--go-tint);color:var(--go)}
+.cell[data-s="now"]{background:var(--white);color:var(--blue);box-shadow:inset 0 0 0 2px var(--blue)}
+.cell[data-s="wait"]{
+  color:var(--ink-3);
+  background-image:repeating-linear-gradient(45deg,transparent 0 4px,rgba(20,24,27,.07) 4px 8px);
+}
+
+/* ---------- run: hero ---------- */
+.hero{
+  display:flex;align-items:flex-end;gap:26px;flex-wrap:wrap;
+  border-bottom:1.5px solid var(--ink);padding-bottom:14px;margin-bottom:18px;
+}
+.hero__num{
+  font-family:var(--mono);font-weight:700;font-size:66px;line-height:.82;letter-spacing:-.05em;
+}
+.hero__unit{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2)}
+.hero__eq{max-width:34ch;color:var(--ink-2);font-size:13px;padding-bottom:4px}
+.hero__meter{flex:1;min-width:220px;padding-bottom:4px}
+.meter{height:12px;background:var(--white);border:1.5px solid var(--ink);border-radius:2px;overflow:hidden}
+.meter__fill{height:100%;background:var(--go);width:0;transition:width .3s cubic-bezier(.2,.7,.3,1)}
+.meter__label{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);margin-bottom:5px}
+
+.runcols{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(280px,.95fr);gap:18px;align-items:start}
+
+/* ---------- run: control strip ---------- */
+.control{
+  background:var(--panel-2);border:1px solid var(--rule);border-radius:3px;
+  padding:12px 14px;margin-bottom:14px;
+}
+.control__row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+
+/* ---------- run: the run card (signature) ---------- */
+.stack{display:flex;flex-direction:column;gap:12px}
+.runcard{
+  display:grid;grid-template-columns:56px minmax(0,1fr);
+  background:var(--white);border:1.5px solid var(--ink);border-radius:3px;
+  box-shadow:4px 4px 0 rgba(20,24,27,.09);
+}
+.runcard[data-s="blocked"]{border-color:var(--rule-2);box-shadow:4px 4px 0 rgba(20,24,27,.04);background:var(--panel)}
+.runcard__gutter{
+  border-right:1.5px dashed var(--rule-2);
+  padding:12px 0 14px;display:flex;flex-direction:column;align-items:center;gap:12px;
+  background:var(--panel-2);
+}
+.runcard[data-s="blocked"] .runcard__gutter{background:transparent}
+.runcard__no{font-family:var(--mono);font-size:23px;font-weight:700;letter-spacing:-.04em;line-height:1}
+.runcard__punch{
+  width:14px;height:14px;border-radius:50%;background:var(--ground);
+  box-shadow:inset 0 1.5px 2px rgba(20,24,27,.4);
+}
+.runcard[data-s="blocked"] .runcard__main{padding:11px 14px 12px}
+.runcard[data-s="blocked"] .runcard__work{font-size:18px;color:var(--ink-2)}
+.runcard[data-s="done"]{border-color:var(--rule-2);background:var(--panel);box-shadow:2px 2px 0 rgba(20,24,27,.04)}
+.runcard[data-s="done"] .runcard__gutter{background:var(--go-tint);border-right-color:var(--go)}
+.runcard[data-s="done"] .runcard__no{color:var(--go)}
+.runcard[data-s="done"] .runcard__main{padding:11px 14px 12px}
+.runcard[data-s="done"] .runcard__work{font-size:18px;color:var(--ink-2)}
+.runcard__main{padding:12px 14px 14px;min-width:0}
+.runcard__head{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:11px}
+.runcard__work{font-size:21px;font-weight:800;letter-spacing:-.02em;line-height:1.05;margin:0}
+.runcard__meta{font-family:var(--mono);font-size:10.5px;color:var(--ink-2);margin-top:3px;letter-spacing:.02em}
+.runcard__foot{display:flex;align-items:center;gap:10px;margin-top:11px;flex-wrap:wrap}
+.stamp{
+  margin-left:auto;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.14em;
+  text-transform:uppercase;border:2px solid currentColor;border-radius:2px;padding:5px 8px;
+  transform:rotate(-1.6deg);line-height:1;white-space:nowrap;
+}
+.stamp[data-s="ready"]{color:var(--go)}
+.stamp[data-s="partial"]{color:var(--hold)}
+.stamp[data-s="blocked"]{color:var(--ink-3);border-width:1.5px}
+.stamp[data-s="done"]{color:var(--go)}
+
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{
+  display:inline-flex;align-items:center;gap:7px;background:var(--white);
+  border:1.5px solid var(--rule-2);border-radius:2px;padding:6px 9px;cursor:pointer;
+  font-family:var(--mono);font-size:12px;font-weight:700;line-height:1;
+  transition:border-color .12s ease,background .12s ease,transform .06s ease;
+}
+.tag__box{width:13px;height:13px;border:1.5px solid var(--rule-2);border-radius:1px;flex:none;display:grid;place-items:center;font-size:10px;color:transparent}
+.tag__wait{font-weight:400;font-size:10px;color:var(--ink-3);letter-spacing:.02em}
+.tag[data-s="ready"]{border-color:var(--ink)}
+.tag[data-s="ready"]:hover{background:var(--go-tint);border-color:var(--go);transform:translateY(-1px)}
+.tag[data-s="ready"]:hover .tag__box{border-color:var(--go);color:var(--go)}
+.tag[data-s="wait"]{border-style:dashed;color:var(--ink-3);cursor:default;background:transparent}
+.tag[data-s="done"]{background:var(--go-tint);border-color:var(--go);color:var(--go)}
+.tag[data-s="done"] .tag__box{background:var(--go);border-color:var(--go);color:var(--white)}
+.tag[data-s="done"]:hover{background:var(--stop-tint);border-color:var(--stop);color:var(--stop)}
+.tag[data-s="done"]:hover .tag__box{background:var(--stop);border-color:var(--stop);font-size:0}
+.tag[data-s="done"]:hover .tag__box::after{content:'↺';font-size:10px;color:var(--white)}
+.tag--prio{box-shadow:inset 3px 0 0 var(--blue);padding-left:11px}
+
+/* ---------- run: steps rail ---------- */
+.rail{position:sticky;top:74px}
+.stepitem{background:var(--panel);border:1px solid var(--rule);border-radius:2px;padding:10px 11px;margin-bottom:8px}
+.stepitem[data-ready="1"]{border-color:var(--go);background:var(--go-tint)}
+.stepitem[data-prio="1"]{box-shadow:inset 4px 0 0 var(--blue)}
+.stepitem__head{display:flex;align-items:center;gap:8px}
+.stepitem__name{font-weight:700;font-size:13px;flex:1;min-width:0}
+.star{background:none;border:0;cursor:pointer;font-size:13px;color:var(--rule-2);padding:2px;line-height:1}
+.star[aria-pressed="true"]{color:var(--blue)}
+.stepitem__when{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);margin-top:5px}
+.stepitem[data-ready="1"] .stepitem__when{color:var(--go)}
+.bar{height:5px;background:var(--white);border:1px solid var(--rule-2);border-radius:2px;overflow:hidden;margin-top:7px}
+.bar__fill{height:100%;background:var(--ink);width:0;transition:width .3s cubic-bezier(.2,.7,.3,1)}
+.stepitem[data-ready="1"] .bar__fill{background:var(--go)}
+.stepitem__items{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.pill{
+  font-family:var(--mono);font-size:10px;font-weight:700;border:1px solid var(--rule-2);
+  border-radius:2px;padding:2px 5px;color:var(--ink-2);background:var(--white);
+}
+.pill[data-done="1"]{background:var(--ink);border-color:var(--ink);color:var(--panel)}
+.pill--step{border-style:dashed;border-color:var(--blue);color:var(--blue)}
+.pill--step::before{content:'▣';margin-right:4px;opacity:.7}
+.pill--step[data-done="1"]{background:var(--blue);border-color:var(--blue);border-style:solid;color:var(--white)}
+
+/* ---------- misc ---------- */
+.notice{
+  display:flex;gap:9px;align-items:flex-start;background:var(--hold-tint);
+  border:1px solid var(--hold);border-radius:2px;padding:9px 11px;font-size:12.5px;
+  color:#5E3A02;margin-bottom:12px;
+}
+.notice b{font-weight:700}
+.toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--panel-2);border:1px solid var(--rule);border-radius:3px;padding:11px 13px;margin-bottom:14px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+details.fold{margin-top:18px}
+details.fold > summary{
+  cursor:pointer;font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-2);padding:8px 0;
+}
+details.fold > summary:hover{color:var(--ink)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);margin:10px 0}
+.legend span{display:flex;align-items:center;gap:5px}
+.swatch{width:11px;height:11px;border:1px solid var(--rule-2);border-radius:1px;display:inline-block}
+
+.toast{
+  position:fixed;left:50%;bottom:22px;transform:translateX(-50%);
+  background:var(--ink);color:var(--panel);font-family:var(--mono);font-size:11px;
+  font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:9px 14px;
+  border-radius:2px;z-index:80;opacity:0;pointer-events:none;transition:opacity .2s ease, transform .2s ease;
+}
+.toast.is-on{opacity:1;transform:translateX(-50%) translateY(-4px)}
+
+@media (max-width:1020px){
+  .cols{grid-template-columns:1fr}
+  .routecols{grid-template-columns:1fr}
+  .itemlist{max-height:320px}
+  .strip{grid-template-columns:1fr;gap:4px}
+  .runcols{grid-template-columns:1fr}
+  .rail{position:static}
+  .hero__num{font-size:52px}
+  .hero{gap:14px}
+}
+@media (max-width:640px){
+  main{padding:16px 12px 70px}
+  .topbar{padding:0 12px}
+  .tabs{margin-left:0;width:100%;overflow-x:auto}
+  .sheetpick{border-left:0;padding:0 0 10px;margin:0;max-width:100%}
+  .sheethead__title{font-size:23px}
+  .topbar__tools{padding-bottom:12px}
+  .runcard{grid-template-columns:40px minmax(0,1fr)}
+  .hero{gap:10px;padding-bottom:10px}
+  .hero__eq{padding-bottom:0}
+  .runcard__punch{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  *{transition-duration:.01ms !important;animation-duration:.01ms !important}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand__mark" aria-hidden="true">▤</span>
+    <span>
+      <span class="brand__name">Runsheet</span><br>
+      <span class="brand__sub">batch planner &amp; work tracker</span>
+    </span>
+  </div>
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Stages">
+    <button class="tab" role="tab" data-tab="define" aria-selected="true"><span class="tab__n">01</span>Define</button>
+    <button class="tab" role="tab" data-tab="route" aria-selected="false"><span class="tab__n">02</span>Route</button>
+    <button class="tab" role="tab" data-tab="run" aria-selected="false"><span class="tab__n">03</span>Run</button>
+  </nav>
+  <button class="sheetpick" id="btn-sheets" title="All runsheets">
+    <span class="sheetpick__label">Sheet</span>
+    <span class="sheetpick__name" id="topbar-title">Untitled runsheet</span>
+    <span class="sheetpick__caret" aria-hidden="true">▾</span>
+  </button>
+  <div class="topbar__tools">
+    <button class="btn btn--ghost btn--sm" id="btn-export">Save file</button>
+    <button class="btn btn--ghost btn--sm" id="btn-import">Open file</button>
+    <input type="file" id="file-input" accept="application/json" class="sr">
+  </div>
+</header>
+
+<main>
+  <!-- =============== 01 DEFINE =============== -->
+  <section class="view is-active" id="view-define" role="tabpanel">
+    <div class="sheethead">
+      <input id="sheet-title" class="sheethead__title" placeholder="Untitled runsheet" autocomplete="off" aria-label="Runsheet title">
+      <input id="sheet-desc" class="sheethead__desc" placeholder="Add a note — customer, order number, due date…" autocomplete="off" aria-label="Runsheet description">
+    </div>
+    <div class="viewhead">
+      <div class="eyebrow">Stage 01</div>
+      <h1>List what you have, what has to be done, and what gets built.</h1>
+      <p>Items are the things work happens to. Work types are the operations you can run. Steps are assembly points: they hold finished items, and they can hold other steps when one assembly feeds the next. Click any name here to rename it.</p>
+    </div>
+    <div class="cols">
+      <div class="panel">
+        <div class="panel__head"><h2>Items</h2><span class="panel__count" id="count-items">0</span></div>
+        <div class="panel__body">
+          <div class="addrow">
+            <input class="field field--mono" id="in-item-code" placeholder="CODE" style="max-width:96px" autocomplete="off">
+            <input class="field" id="in-item-name" placeholder="Description" autocomplete="off">
+            <button class="btn btn--solid" id="btn-add-item">Add</button>
+          </div>
+          <ul class="list" id="list-items"></ul>
+          <p class="hint">Got a list already? Paste it into either box — one item per line, as <span class="mono">CODE, Name</span> — and they all get added at once.</p>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel__head"><h2>Work types</h2><span class="panel__count" id="count-works">0</span></div>
+        <div class="panel__body">
+          <div class="addrow">
+            <input class="field" id="in-work-name" placeholder="e.g. Powder coat" autocomplete="off">
+            <button class="btn btn--solid" id="btn-add-work">Add</button>
+          </div>
+          <ul class="list" id="list-works"></ul>
+          <p class="hint">One entry per kind of work you'd set up for. Paste a list to add several at once. Order them the way they usually run — it breaks ties when two batches are equally good.</p>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel__head"><h2>Steps</h2><span class="panel__count" id="count-steps">0</span></div>
+        <div class="panel__body">
+          <div class="addrow">
+            <input class="field" id="in-step-name" placeholder="e.g. Cabinet body" autocomplete="off">
+            <button class="btn btn--solid" id="btn-add-step">Add</button>
+          </div>
+          <div id="list-steps"></div>
+          <p class="hint">Click items to attach them, and paste a list to add several steps at once. A step is clear to assemble once every item on it — and every sub-assembly inside it — has finished its route.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =============== 02 ROUTE =============== -->
+  <section class="view" id="view-route" role="tabpanel">
+    <div class="viewhead">
+      <div class="eyebrow">Stage 02</div>
+      <h1>Give each item its route: the work it needs, in the order it needs it.</h1>
+      <p>Pick an item on the left, build its route on the right. Drag operations to reorder, or copy a finished route onto as many items as you like.</p>
+    </div>
+    <div id="route-body"></div>
+  </section>
+
+  <!-- =============== LIBRARY =============== -->
+  <section class="view" id="view-sheets" role="tabpanel">
+    <div id="sheets-body"></div>
+  </section>
+
+  <!-- =============== 03 RUN =============== -->
+  <section class="view" id="view-run" role="tabpanel">
+    <div id="run-body"></div>
+  </section>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+'use strict';
+
+/* ============================================================
+   Runsheet — state
+   items : things work happens to
+   works : operation types (a batch is one work type, run once)
+   steps : assembly points that consume finished items
+   routes: itemId -> ordered [workId]
+   progress: itemId -> number of operations completed (always a prefix)
+   ============================================================ */
+
+const $  = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.prototype.slice.call(r.querySelectorAll(s));
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+
+let seq = 0;
+const uid = p => p + '_' + (++seq) + Math.random().toString(36).slice(2, 5);
+
+const state = {
+  title: '', description: '',
+  items: [], works: [], steps: [],
+  routes: {}, progress: {}, ledger: [],
+  priority: [],
+  tab: 'define',
+  focus: null, workFilter: '', picked: {}, edit: null, confirm: null
+};
+
+
+/* ---------- lookups ---------- */
+const item = id => state.items.find(i => i.id === id);
+const work = id => state.works.find(w => w.id === id);
+const step = id => state.steps.find(s => s.id === id);
+const workName = id => (work(id) || {}).name || '—';
+const routeOf = id => state.routes[id] || [];
+const prog = id => Math.min(state.progress[id] || 0, routeOf(id).length);
+const itemDone = id => prog(id) >= routeOf(id).length;
+/* Steps hold items and, optionally, other steps — a sub-assembly feeding an
+   assembly. Everything downstream works off the transitive item set. */
+const subSteps = s => (s && s.stepIds) || [];
+const ownItems = s => (s && s.itemIds) || [];
+function stepItemSet(id) {
+  const out = new Set(), seen = new Set();
+  (function walk(sid) {
+    if (seen.has(sid)) return;
+    seen.add(sid);
+    const s = step(sid);
+    if (!s) return;
+    ownItems(s).forEach(i => { if (item(i)) out.add(i); });
+    subSteps(s).forEach(walk);
+  })(id);
+  return out;
+}
+function stepDone(id) {
+  const ids = stepItemSet(id);
+  const s = step(id);
+  if (!s || (!ownItems(s).length && !subSteps(s).length)) return false;
+  let all = true;
+  ids.forEach(i => { if (!itemDone(i)) all = false; });
+  return all;
+}
+/* a step cannot end up inside itself */
+function wouldLoop(parentId, childId) {
+  if (parentId === childId) return true;
+  const seen = new Set();
+  let found = false;
+  (function walk(sid) {
+    if (found || seen.has(sid)) return;
+    seen.add(sid);
+    if (sid === parentId) { found = true; return; }
+    subSteps(step(sid)).forEach(walk);
+  })(childId);
+  return found;
+}
+
+const totalOps = () => state.items.reduce((n, i) => n + routeOf(i.id).length, 0);
+const doneOps  = () => state.items.reduce((n, i) => n + prog(i.id), 0);
+
+/* ============================================================
+   The planner
+   Each round: look at every item's next operation. Group those by
+   work type — each group could be run as one batch right now.
+   Pick the group that wastes the least: a work type is worth running
+   when most of its remaining demand is already waiting at the door.
+   Coverage = ready / (ready + arriving later). Running at coverage 1
+   means that work type never needs a second setup.
+   Urgent steps add weight to their own items, which is what buys the
+   right to split a batch that would otherwise have been whole.
+   ============================================================ */
+function scan(sim) {
+  const ready = new Map(), later = new Map();
+  for (const it of state.items) {
+    const r = routeOf(it.id), p = sim[it.id] || 0;
+    for (let i = p; i < r.length; i++) {
+      if (i === p) {
+        if (!ready.has(r[i])) ready.set(r[i], []);
+        ready.get(r[i]).push(it.id);
+      } else {
+        later.set(r[i], (later.get(r[i]) || 0) + 1);
+      }
+    }
+  }
+  return { ready: ready, later: later };
+}
+
+/* Coverage: how much of this work type's remaining demand is already at the
+   door. Running at coverage 1 means this work type never needs a second setup. */
+const coverScore = (r, f) => r * (0.15 + 0.85 * (r / (r + f)));
+
+/* A plain, fast greedy played out to the end — used to judge candidate moves. */
+function rollout(sim0, urgent) {
+  const sim = Object.assign({}, sim0);
+  const order = new Map(state.works.map((w, i) => [w.id, i]));
+  let n = 0, clear = 0, guard = 0;
+  while (guard++ < 4000) {
+    const s = scan(sim);
+    if (!s.ready.size) break;
+    let best = null, bestScore = -Infinity;
+    s.ready.forEach((ids, w) => {
+      const sc = coverScore(ids.length, s.later.get(w) || 0) - (order.get(w) || 0) * 1e-4;
+      if (sc > bestScore) { bestScore = sc; best = w; }
+    });
+    n++;
+    s.ready.get(best).forEach(id => {
+      sim[id] = (sim[id] || 0) + 1;
+      if (sim[id] >= routeOf(id).length && urgent.has(id)) clear = n;
+    });
+  }
+  return { n: n, clear: clear };
+}
+
+/* The planner. Each round it looks at every item's next operation, groups them
+   by work type, and plays each candidate group out to the end. The winner is
+   the one with the lowest cost: setups, plus a weighted wait on any steps
+   marked urgent. With nothing urgent, that is simply the fewest setups. */
+function buildPlan(urgent, weight, lookahead) {
+  const sim = {};
+  state.items.forEach(i => { sim[i.id] = prog(i.id); });
+  const order = new Map(state.works.map((w, i) => [w.id, i]));
+  const batches = [], finish = {};
+  state.items.forEach(i => { if (itemDone(i.id)) finish[i.id] = 0; });
+
+  let clearSoFar = 0, guard = 0;
+  while (guard++ < 4000) {
+    const s = scan(sim);
+    if (!s.ready.size) break;
+
+    const cands = [];
+    s.ready.forEach((ids, w) => {
+      const f = s.later.get(w) || 0;
+      const np = ids.filter(id => urgent.has(id)).length;
+      cands.push({ w: w, ids: ids, later: f, urgent: np,
+        score: coverScore(ids.length, f) + np * weight - (order.get(w) || 0) * 1e-4 });
+    });
+    cands.sort((a, x) => x.score - a.score);
+
+    let pick = cands[0];
+    if (lookahead && cands.length > 1) {
+      const k = batches.length + 1;
+      let bestCost = Infinity;
+      cands.slice(0, 5).forEach(c => {
+        const sim2 = Object.assign({}, sim);
+        let clear = clearSoFar;
+        c.ids.forEach(id => {
+          sim2[id] = (sim2[id] || 0) + 1;
+          if (sim2[id] >= routeOf(id).length && urgent.has(id)) clear = k;
+        });
+        const ev = rollout(sim2, urgent);
+        const cost = (k + ev.n) + weight * Math.max(clear, ev.clear ? k + ev.clear : 0);
+        if (cost < bestCost - 1e-9 || (Math.abs(cost - bestCost) < 1e-9 && c.score > pick.score)) {
+          bestCost = cost; pick = c;
+        }
+      });
+    }
+
+    batches.push({ workId: pick.w, later: pick.later, urgent: pick.urgent,
+      ops: pick.ids.map(id => ({ itemId: id, idx: sim[id] || 0 })) });
+    pick.ids.forEach(id => {
+      sim[id] = (sim[id] || 0) + 1;
+      if (sim[id] >= routeOf(id).length) {
+        finish[id] = batches.length;
+        if (urgent.has(id)) clearSoFar = batches.length;
+      }
+    });
+  }
+  return { batches: batches, finish: finish };
+}
+
+/* Urgent steps get a second plan drawn up, and it only wins if it is genuinely
+   cheaper — so a split never happens unless it clears those steps sooner. */
+function computePlan() {
+  const urgent = new Set();
+  state.priority.forEach(sid => {
+    const st = step(sid);
+    if (st) stepItemSet(sid).forEach(id => urgent.add(id));
+  });
+  /* rollouts are cheap on shop-sized jobs; on very large ones, fall back */
+  const lookahead = state.items.length * Math.max(1, state.works.length) <= 4000;
+
+  const plain = buildPlan(urgent, 0, lookahead);
+  plain.split = false;
+  plain.baseline = plain;
+  plain.clear = 0;
+  if (!urgent.size) return plain;
+
+  const clearOf = p => {
+    let m = 0;
+    urgent.forEach(id => { m = Math.max(m, p.finish[id] === undefined ? p.batches.length : p.finish[id]); });
+    return m;
+  };
+  plain.clear = clearOf(plain);
+
+  /* Urgent steps are run flat out: the plan that clears them earliest wins,
+     and the only question left is how many extra setups that costs. */
+  const pushed = buildPlan(urgent, 1000, lookahead);
+  pushed.clear = clearOf(pushed);
+
+  const best = pushed.clear < plain.clear ? pushed : plain;
+  best.baseline = plain;
+  best.split = best !== plain;
+  return best;
+}
+
+/* op is actionable right now if it sits exactly at the item's frontier */
+const opReady = o => prog(o.itemId) === o.idx;
+
+function batchState(b) {
+  const ready = b.ops.filter(opReady).length;
+  if (ready === b.ops.length) return 'ready';
+  if (ready > 0) return 'partial';
+  return 'blocked';
+}
+
+const STAMP = { ready: 'Start now', partial: 'Part ready', blocked: 'Blocked', done: 'Done' };
+
+/* ============================================================
+   Mutations
+   ============================================================ */
+/* Ticking work off records which setup it was run in. That ledger is what
+   keeps a finished item sitting on its card instead of vanishing, and it is
+   what a mis-tick gets removed from. */
+function logOp(itemId, idx) {
+  const w = routeOf(itemId)[idx];
+  const last = state.ledger[state.ledger.length - 1];
+  if (last && last.workId === w) last.ops.push({ itemId: itemId, idx: idx });
+  else state.ledger.push({ workId: w, ops: [{ itemId: itemId, idx: idx }] });
+}
+function tickOp(itemId, idx) {
+  state.progress[itemId] = idx + 1;
+  logOp(itemId, idx);
+  render();
+}
+function rollback(itemId, idx) {
+  const undone = prog(itemId) - idx;
+  state.progress[itemId] = Math.max(0, idx);
+  state.ledger.forEach(e => { e.ops = e.ops.filter(o => !(o.itemId === itemId && o.idx >= idx)); });
+  state.ledger = state.ledger.filter(e => e.ops.length);
+  render();
+  if (undone > 1) toast(undone + ' operations put back on ' + item(itemId).code);
+}
+function cleanLedger() {
+  state.ledger.forEach(e => {
+    e.ops = e.ops.filter(o => item(o.itemId) && o.idx < prog(o.itemId) && routeOf(o.itemId)[o.idx] === e.workId);
+  });
+  state.ledger = state.ledger.filter(e => e.ops.length);
+}
+let toastTimer = null;
+function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('is-on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('is-on'), 1900);
+}
+
+/* ============================================================
+   01 — Define
+   ============================================================ */
+/* Deleting reaches further than it looks, so each one says what it will take
+   with it and waits for a second click. */
+function deleteWarning(kind, id) {
+  if (kind === 'item') {
+    const it = item(id);
+    if (!it) return '';
+    const ops = routeOf(id).length, t = prog(id);
+    const inSteps = state.steps.filter(s => ownItems(s).indexOf(id) > -1).length;
+    const parts = [];
+    if (ops) parts.push(ops + ' routed operation' + (ops > 1 ? 's' : '') + (t ? ' (' + t + ' already ticked off)' : ''));
+    if (inSteps) parts.push('its place on ' + inSteps + ' step' + (inSteps > 1 ? 's' : ''));
+    return 'Remove <b>' + esc(it.code) + '</b>? ' +
+      (parts.length ? 'That drops ' + parts.join(' and ') + '.' : 'Nothing else depends on it.');
+  }
+  if (kind === 'work') {
+    const w = work(id);
+    if (!w) return '';
+    let uses = 0, routes = 0, ticked = 0;
+    state.items.forEach(it => {
+      let n = 0;
+      routeOf(it.id).forEach((x, i) => { if (x === id) { n++; if (i < prog(it.id)) ticked++; } });
+      if (n) { uses += n; routes++; }
+    });
+    return 'Remove <b>' + esc(w.name) + '</b>? ' + (uses
+      ? 'It comes off ' + routes + ' route' + (routes > 1 ? 's' : '') + ', dropping ' + uses +
+        ' operation' + (uses > 1 ? 's' : '') + (ticked ? ' — ' + ticked + ' of them already ticked off' : '') + '.'
+      : "It isn't on any route yet.");
+  }
+  const s = step(id);
+  if (!s) return '';
+  const parents = state.steps.filter(p => subSteps(p).indexOf(id) > -1).length;
+  return 'Remove <b>' + esc(s.name) + '</b>? Its items and sub-assemblies stay' +
+    (parents ? ', but it comes off ' + parents + ' step' + (parents > 1 ? 's' : '') : '') + '.';
+}
+
+function doDelete(kind, id) {
+  state.confirm = null;
+  if (kind === 'item') {
+    state.items = state.items.filter(i => i.id !== id);
+    delete state.routes[id]; delete state.progress[id]; delete state.picked[id];
+    if (state.focus === id) state.focus = null;
+    state.steps.forEach(s => { s.itemIds = ownItems(s).filter(x => x !== id); });
+    state.ledger.forEach(en => { en.ops = en.ops.filter(o => o.itemId !== id); });
+    state.ledger = state.ledger.filter(en => en.ops.length);
+  } else if (kind === 'work') {
+    state.works = state.works.filter(w => w.id !== id);
+    Object.keys(state.routes).forEach(k => {
+      const after = state.routes[k].filter(x => x !== id);
+      if (after.length !== state.routes[k].length) {
+        state.progress[k] = Math.min(state.progress[k] || 0, after.length);
+      }
+      state.routes[k] = after;
+    });
+  } else {
+    state.steps = state.steps.filter(s => s.id !== id);
+    state.steps.forEach(s => { s.stepIds = subSteps(s).filter(x => x !== id); });
+    state.priority = state.priority.filter(x => x !== id);
+  }
+  render();
+}
+
+function confirmBar(kind, id, wide) {
+  return '<div class="danger' + (wide ? ' danger--card' : '') + '">' +
+    '<span class="danger__msg">' + deleteWarning(kind, id) + '</span>' +
+    '<span class="row__spacer"></span>' +
+    '<button class="btn btn--sm btn--danger" data-do-del>Remove</button>' +
+    '<button class="btn btn--sm btn--ghost" data-keep>Keep</button>' +
+  '</div>';
+}
+
+function renderDefine() {
+  $('#count-items').textContent = state.items.length;
+  $('#count-works').textContent = state.works.length;
+  $('#count-steps').textContent = state.steps.length;
+  const ed = state.edit;
+  const editing = (kind, id) => ed && ed.kind === kind && ed.id === id;
+  const cf = state.confirm;
+  const confirming = (kind, id) => cf && cf.kind === kind && cf.id === id;
+
+  const li = $('#list-items');
+  li.innerHTML = state.items.length ? state.items.map(it => {
+    if (confirming('item', it.id)) return '<li class="row row--danger">' + confirmBar('item', it.id) + '</li>';
+    if (editing('item', it.id)) {
+      return '<li class="row row--edit">' +
+        '<input class="field field--mono" data-edit-code style="max-width:96px" value="' + esc(it.code) + '" aria-label="Code">' +
+        '<input class="field" data-edit-name value="' + esc(it.name) + '" aria-label="Description">' +
+        '<button class="btn btn--sm btn--solid" data-save-edit>Save</button>' +
+        '<button class="icon-btn" data-cancel-edit title="Cancel">✕</button>' +
+      '</li>';
+    }
+    const n = routeOf(it.id).length;
+    return '<li class="row">' +
+      '<button class="rowtext" data-edit-item="' + it.id + '" title="Rename">' +
+        '<span class="row__code">' + esc(it.code) + '</span>' +
+        '<span class="row__name">' + esc(it.name) + '</span>' +
+      '</button>' +
+      '<span class="row__ops">' + (n ? n + ' op' + (n > 1 ? 's' : '') : 'no route') + '</span>' +
+      '<button class="icon-btn" data-del-item="' + it.id + '" title="Remove item" aria-label="Remove ' + esc(it.code) + '">✕</button>' +
+    '</li>';
+  }).join('') : emptyBox('No items yet', 'Add the first part, panel or job number above.');
+
+  const lw = $('#list-works');
+  lw.innerHTML = state.works.length ? state.works.map((w, i) => {
+    if (confirming('work', w.id)) return '<li class="row row--danger">' + confirmBar('work', w.id) + '</li>';
+    if (editing('work', w.id)) {
+      return '<li class="row row--edit">' +
+        '<span class="row__ord">' + String(i + 1).padStart(2, '0') + '</span>' +
+        '<input class="field" data-edit-name value="' + esc(w.name) + '" aria-label="Work type name">' +
+        '<button class="btn btn--sm btn--solid" data-save-edit>Save</button>' +
+        '<button class="icon-btn" data-cancel-edit title="Cancel">✕</button>' +
+      '</li>';
+    }
+    return '<li class="row">' +
+      '<span class="row__ord">' + String(i + 1).padStart(2, '0') + '</span>' +
+      '<button class="rowtext" data-edit-work="' + w.id + '" title="Rename">' +
+        '<span class="row__name" style="color:var(--ink);font-weight:600">' + esc(w.name) + '</span>' +
+      '</button>' +
+      '<button class="icon-btn" data-move-work="' + w.id + '" data-dir="-1" title="Move up"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
+      '<button class="icon-btn" data-move-work="' + w.id + '" data-dir="1" title="Move down"' + (i === state.works.length - 1 ? ' disabled' : '') + '>↓</button>' +
+      '<button class="icon-btn" data-del-work="' + w.id + '" title="Remove work type">✕</button>' +
+    '</li>';
+  }).join('') : emptyBox('No work types yet', 'Name the operations you run — cut, weld, paint.');
+
+  const ls = $('#list-steps');
+  ls.innerHTML = state.steps.length ? state.steps.map(st => {
+    const chips = state.items.length
+      ? state.items.map(it => '<button class="chip" data-step-item="' + st.id + '" data-item="' + it.id +
+          '" aria-pressed="' + (ownItems(st).indexOf(it.id) > -1) + '">' + esc(it.code) + '</button>').join('')
+      : '<span class="hint" style="margin:0">Add items first.</span>';
+    const others = state.steps.filter(o => o.id !== st.id);
+    const subs = others.map(o => {
+      const on = subSteps(st).indexOf(o.id) > -1;
+      const loop = !on && wouldLoop(st.id, o.id);
+      return '<button class="chip chip--step" data-step-sub="' + st.id + '" data-sub="' + o.id + '"' +
+        ' aria-pressed="' + on + '"' + (loop ? ' disabled title="' + esc(o.name) + ' already contains this step"' : '') +
+        '>' + esc(o.name) + '</button>';
+    }).join('');
+    const counts = [];
+    if (ownItems(st).length) counts.push(ownItems(st).length + ' item' + (ownItems(st).length > 1 ? 's' : ''));
+    if (subSteps(st).length) counts.push(subSteps(st).length + ' step' + (subSteps(st).length > 1 ? 's' : ''));
+    const head = editing('step', st.id)
+      ? '<div class="stepcard__head row--edit">' +
+          '<input class="field" data-edit-name value="' + esc(st.name) + '" aria-label="Step name">' +
+          '<button class="btn btn--sm btn--solid" data-save-edit>Save</button>' +
+          '<button class="icon-btn" data-cancel-edit title="Cancel">✕</button>' +
+        '</div>'
+      : '<div class="stepcard__head">' +
+          '<button class="rowtext" data-edit-step="' + st.id + '" title="Rename">' +
+            '<span class="stepcard__name">' + esc(st.name) + '</span>' +
+          '</button>' +
+          '<span class="row__ops">' + (counts.join(' · ') || 'empty') + '</span>' +
+          '<button class="icon-btn" data-del-step="' + st.id + '" title="Remove step">✕</button>' +
+        '</div>';
+    return '<div class="stepcard' + (confirming('step', st.id) ? ' stepcard--danger' : '') + '">' +
+      (confirming('step', st.id) ? confirmBar('step', st.id, true) : '') + head +
+      '<div class="eyebrow" style="margin-bottom:5px">Items</div>' +
+      '<div class="chips">' + chips + '</div>' +
+      (others.length
+        ? '<div class="eyebrow" style="margin:9px 0 5px">Sub-assemblies</div><div class="chips">' + subs + '</div>'
+        : '') +
+    '</div>';
+  }).join('') : emptyBox('No steps yet', 'Optional — add one for each assembly that waits on finished items. A step can hold other steps too.');
+
+  if (ed) {
+    const first = $('#view-define [data-edit-code], #view-define [data-edit-name]');
+    if (first) { first.focus(); first.select(); }
+  }
+}
+
+/* renaming happens in place; ids never change, so nothing downstream moves */
+function commitEdit() {
+  const ed = state.edit;
+  state.edit = null;
+  if (!ed) return;
+  const nameEl = $('[data-edit-name]'), codeEl = $('[data-edit-code]');
+  const name = nameEl ? nameEl.value.trim() : '';
+  if (ed.kind === 'item') {
+    const it = item(ed.id);
+    if (!it) return;
+    const code = codeEl ? codeEl.value.trim() : '';
+    if (code) it.code = code;
+    it.name = name;
+  } else if (ed.kind === 'work') {
+    const w = work(ed.id);
+    if (w && name) w.name = name;
+  } else if (ed.kind === 'step') {
+    const s = step(ed.id);
+    if (s && name) s.name = name;
+  }
+}
+
+const emptyBox = (t, s) => '<div class="empty"><strong>' + t + '</strong>' + s + '</div>';
+
+/* ============================================================
+   02 — Route
+   ============================================================ */
+function renderRoute() {
+  const host = $('#route-body');
+  if (!state.items.length || !state.works.length) {
+    host.innerHTML = emptyBox('Nothing to route yet',
+      !state.items.length ? 'Add items on Define first.' : 'Add work types on Define first.');
+    return;
+  }
+  if (!item(state.focus)) state.focus = state.items[0].id;
+  const f = item(state.focus);
+  const route = routeOf(f.id);
+  const picked = state.items.filter(i => state.picked[i.id]);
+  const allPicked = picked.length === state.items.length;
+  const ticked = prog(f.id);
+
+  const chain = id => {
+    const r = routeOf(id);
+    return r.length ? r.map(w => esc(workName(w))).join(' → ') : '<em>no route yet</em>';
+  };
+
+  let h = '<div class="routecols">';
+
+  /* left: every item, with its route spelled out */
+  h += '<div class="panel"><div class="panel__head"><h2>Items</h2>' +
+      '<span class="panel__count">' + state.items.length + '</span></div>' +
+    '<div class="panel__body" style="padding:0">' +
+      '<label class="selrow"><input type="checkbox" id="sel-all"' + (allPicked ? ' checked' : '') + '>' +
+        (picked.length ? picked.length + ' selected' : 'Select all') + '</label>' +
+      '<ul class="itemlist">' + state.items.map(it =>
+        '<li class="ritem" aria-current="' + (it.id === f.id) + '">' +
+          '<input type="checkbox" data-pick="' + it.id + '"' + (state.picked[it.id] ? ' checked' : '') +
+            ' aria-label="Select ' + esc(it.code) + '">' +
+          '<button class="ritem__btn" data-focus="' + it.id + '">' +
+            '<span class="ritem__code">' + esc(it.code) + '</span> ' +
+            '<span class="ritem__nm">' + esc(it.name) + '</span>' +
+            '<span class="chain">' + chain(it.id) + '</span>' +
+          '</button>' +
+        '</li>').join('') +
+      '</ul></div></div>';
+
+  /* right: the route sheet for the focused item */
+  h += '<div class="panel"><div class="panel__head">' +
+      '<h2>Route for <span class="mono">' + esc(f.code) + '</span></h2>' +
+      '<span class="row__spacer"></span>' +
+      (picked.length ? '<button class="btn btn--sm" id="btn-apply-picked">Copy to ' + picked.length + ' selected</button>' : '') +
+      (route.length ? '<button class="btn btn--sm btn--ghost" id="btn-clear-route">Clear route</button>' : '') +
+    '</div><div class="panel__body">';
+
+  h += '<p class="hint" style="margin:0 0 11px">' +
+    (route.length ? route.length + ' operation' + (route.length > 1 ? 's' : '') + ', run top to bottom. Drag a row, or use the arrows, to change the order.'
+                  : 'Nothing routed yet. Add the first operation below.') +
+    (ticked ? ' <b>' + ticked + ' already ticked off</b> — editing rolls progress back to fit.' : '') +
+    '</p>';
+
+  h += route.length
+    ? '<ol class="oplist" id="oplist">' + route.map((w, i) =>
+        '<li class="op" draggable="true" data-op="' + i + '">' +
+          '<span class="op__no">' + String(i + 1).padStart(2, '0') + '</span>' +
+          '<span class="op__grip" aria-hidden="true">⣿</span>' +
+          '<span class="op__name">' + esc(workName(w)) + '</span>' +
+          '<span class="row__spacer"></span>' +
+          '<button class="icon-btn" data-move-op="' + i + '" data-dir="-1"' + (i === 0 ? ' disabled' : '') + ' title="Move up" aria-label="Move up">↑</button>' +
+          '<button class="icon-btn" data-move-op="' + i + '" data-dir="1"' + (i === route.length - 1 ? ' disabled' : '') + ' title="Move down" aria-label="Move down">↓</button>' +
+          '<button class="icon-btn" data-drop-op="' + i + '" title="Remove operation" aria-label="Remove">✕</button>' +
+        '</li>').join('') + '</ol>'
+    : emptyBox('No operations yet', 'Pick one below, or copy a route from another item.');
+
+  h += '<div class="eyebrow" style="margin:15px 0 7px">Add an operation</div>' +
+    (state.works.length > 10
+      ? '<input class="field" id="work-filter" placeholder="Filter work types" value="' + esc(state.workFilter || '') + '" autocomplete="off" style="margin-bottom:8px;max-width:280px">'
+      : '') +
+    '<div class="chips" id="work-palette">' + paletteHTML(route) + '</div>';
+
+  const others = state.items.filter(i => i.id !== f.id && routeOf(i.id).length);
+  if (others.length) {
+    h += '<div class="copyrow"><span class="eyebrow">Copy a route from</span>' +
+      '<select class="field" id="copy-from" style="max-width:250px">' +
+      '<option value="">Choose an item…</option>' +
+      others.map(i => '<option value="' + i.id + '">' + esc(i.code) + ' · ' +
+        routeOf(i.id).length + ' ops</option>').join('') +
+      '</select></div>';
+  }
+
+  h += '</div></div></div>';
+
+  /* a quiet tally of what is sitting idle — neither of these is a problem */
+  const bare = state.items.filter(i => !routeOf(i.id).length);
+  const used = new Set();
+  state.items.forEach(i => routeOf(i.id).forEach(w => used.add(w)));
+  const spare = state.works.filter(w => !used.has(w.id));
+
+  h += '<div class="tally">' +
+    '<span>' + totalOps() + ' operations · ' + state.items.length + ' items · ' +
+      state.works.length + ' work types</span>' +
+    (bare.length ? '<span class="tally__group"><span class="tally__label">No work routed</span>' +
+      bare.map(i => '<button class="tally__chip" data-focus="' + i.id + '">' + esc(i.code) + '</button>').join('') +
+      '<span class="tally__note">counts as finished</span></span>' : '') +
+    (spare.length ? '<span class="tally__group"><span class="tally__label">Not used yet</span>' +
+      spare.map(w => '<span class="tally__chip">' + esc(w.name) + '</span>').join('') + '</span>' : '') +
+  '</div>';
+
+  host.innerHTML = h;
+}
+
+function paletteHTML(route) {
+  const q = (state.workFilter || '').toLowerCase();
+  const list = state.works.filter(w => !q || w.name.toLowerCase().indexOf(q) > -1);
+  if (!list.length) return '<span class="hint" style="margin:0">No work type matches that.</span>';
+  return list.map(w =>
+    '<button class="chip" data-add-work="' + w.id + '">' +
+      (route.indexOf(w.id) > -1 ? '<span class="chip__mark">✓</span> ' : '') + esc(w.name) +
+    '</button>').join('');
+}
+
+/* keeps an item's ticked-off count inside its route after an edit */
+function fitProgress(id) {
+  state.progress[id] = Math.min(state.progress[id] || 0, routeOf(id).length);
+}
+
+/* ============================================================
+   03 — Run
+   ============================================================ */
+function renderRun() {
+  const host = $('#run-body');
+  if (!state.items.length || !totalOps()) {
+    host.innerHTML = '<div class="viewhead"><div class="eyebrow">Stage 03</div>' +
+      '<h1>The plan appears once items have routes.</h1></div>' +
+      emptyBox('No work to batch', 'Go back to Route and map at least one operation — or load the sample job from the top bar.');
+    return;
+  }
+
+  cleanLedger();
+  const plan = computePlan();
+  const total = totalOps(), done = doneOps();
+  const pct = total ? Math.round(done / total * 100) : 0;
+  const remaining = total - done;
+  const b = plan.batches;
+  const readyCount = b.filter(x => batchState(x) === 'ready').length;
+
+  let h = '';
+
+  /* hero — the number that matters is how few setups are left */
+  h += '<div class="hero">' +
+    '<div><div class="hero__num">' + String(b.length).padStart(2, '0') + '</div>' +
+      '<div class="hero__unit">batches left</div></div>' +
+    '<p class="hero__eq">' + remaining + ' operations still to run on ' +
+      state.items.filter(i => !itemDone(i.id)).length + ' items, grouped into ' + b.length +
+      ' setups. ' + readyCount + ' can start now.</p>' +
+    '<div class="hero__meter">' +
+      '<div class="meter__label"><span>Work complete</span><span>' + done + ' / ' + total + ' · ' + pct + '%</span></div>' +
+      '<div class="meter"><div class="meter__fill" style="width:' + pct + '%"></div></div>' +
+    '</div>' +
+  '</div>';
+
+  /* control strip */
+  const stepsExist = state.steps.length > 0;
+  let verdict = 'Pick one and its items get pulled forward — splitting a batch if that clears the step sooner.';
+  if (state.priority.length) {
+    const was = plan.baseline.batches.length, wasClear = plan.baseline.clear;
+    if (plan.split) {
+      const extra = b.length - was, sooner = wasClear - plan.clear;
+      verdict = 'Split: ' + extra + ' extra setup' + (extra > 1 ? 's' : '') + ' to clear them at batch ' +
+        String(plan.clear).padStart(2, '0') + ' instead of ' + String(wasClear).padStart(2, '0') +
+        ' — ' + sooner + ' batch' + (sooner > 1 ? 'es' : '') + ' sooner.';
+    } else {
+      verdict = 'Nothing clears them before batch ' + String(plan.clear).padStart(2, '0') +
+        ', so the batches stay whole.';
+    }
+  }
+  h += '<div class="control"><div class="control__row">' +
+    '<span class="eyebrow">Urgent steps</span>' +
+    (stepsExist
+      ? '<div class="chips">' + state.steps.map(s =>
+          '<button class="chip" data-prio="' + s.id + '" aria-pressed="' + (state.priority.indexOf(s.id) > -1) + '">' + esc(s.name) + '</button>').join('') + '</div>' +
+        '<span class="hint" style="margin:0;max-width:56ch">' + verdict + '</span>'
+      : '<span class="hint" style="margin:0">No steps defined — batching is optimised purely for the fewest setups.</span>') +
+    '</div></div>';
+
+  /* Cards = setups already run (from the ledger) followed by planned ones.
+     If the setup in progress is the same work type as the next planned batch,
+     they are one card: ticked items stay put, the rest sit beside them. */
+  const cards = state.ledger.map(e => ({
+    workId: e.workId, done: e.ops.slice(), ops: [], later: 0, urgent: 0, planIndex: -1
+  }));
+  const ledgerCount = cards.length;
+  let merged = false;
+  if (ledgerCount && b.length && cards[ledgerCount - 1].workId === b[0].workId) {
+    Object.assign(cards[ledgerCount - 1], { ops: b[0].ops, later: b[0].later, urgent: b[0].urgent, planIndex: 0 });
+    merged = true;
+  }
+  for (let i = merged ? 1 : 0; i < b.length; i++) {
+    cards.push({ workId: b[i].workId, done: [], ops: b[i].ops, later: b[i].later, urgent: b[i].urgent, planIndex: i });
+  }
+  const offset = ledgerCount - (merged ? 1 : 0);
+  const dispNum = f => String(offset + f).padStart(2, '0');
+
+  h += '<div class="runcols"><div>';
+
+  if (!b.length) {
+    h += '<div class="empty" style="background:var(--go-tint);border-color:var(--go);border-style:solid">' +
+      '<strong>Every operation is done.</strong>All items are finished — steps below are clear to assemble.</div>';
+  }
+
+  cards.forEach((batch, i) => {
+    const st = batch.ops.length ? batchState(batch) : 'done';
+    const rdy = batch.ops.filter(opReady).length;
+    const waits = [];
+    batch.ops.forEach(o => {
+      if (opReady(o)) return;
+      const w = workName(routeOf(o.itemId)[prog(o.itemId)]);
+      if (waits.indexOf(w) < 0) waits.push(w);
+    });
+    const oneWait = st === 'blocked' && waits.length === 1;
+    const count = batch.done.length + batch.ops.length;
+    const bits = [count + ' item' + (count > 1 ? 's' : '')];
+    if (batch.done.length && st !== 'done') bits.push(batch.done.length + ' ticked off');
+    if (st === 'done') bits.push('setup complete');
+    else if (st === 'blocked') bits.push('waiting on ' + esc(waits.join(', ')));
+    else {
+      bits.push(rdy + ' ready now');
+      bits.push(batch.later ? batch.later + ' more will need this later' : 'covers all remaining');
+    }
+    if (batch.urgent) bits.push(batch.urgent + ' urgent');
+
+    const tag = (o, done) => {
+      const ready = !done && opReady(o);
+      const it = item(o.itemId);
+      if (!it) return '';
+      const waitOn = (done || ready || oneWait) ? '' : workName(routeOf(o.itemId)[prog(o.itemId)]);
+      const urgent = state.priority.some(sid => stepItemSet(sid).has(o.itemId));
+      const attrs = done
+        ? ' data-untick="' + o.itemId + '" data-idx="' + o.idx + '" title="Put this back"'
+        : (ready ? ' data-tick="' + o.itemId + '" data-idx="' + o.idx + '"' : ' disabled');
+      return '<button class="tag' + (urgent ? ' tag--prio' : '') + '" data-s="' +
+        (done ? 'done' : (ready ? 'ready' : 'wait')) + '"' + attrs + '>' +
+        (done || ready ? '<span class="tag__box">✓</span>' : '') + esc(it.code) +
+        (waitOn ? '<span class="tag__wait">after ' + esc(waitOn) + '</span>' : '') +
+        '</button>';
+    };
+
+    h += '<div class="runcard" data-s="' + st + '">' +
+      '<div class="runcard__gutter">' +
+        '<div class="runcard__no">' + String(i + 1).padStart(2, '0') + '</div>' +
+        '<div class="runcard__punch"></div><div class="runcard__punch"></div>' +
+      '</div>' +
+      '<div class="runcard__main">' +
+        '<div class="runcard__head"><div>' +
+          '<h3 class="runcard__work">' + esc(workName(batch.workId)) + '</h3>' +
+          '<div class="runcard__meta">' + bits.join(' · ') + '</div>' +
+        '</div>' +
+        '<span class="stamp" data-s="' + st + '">' + STAMP[st] + '</span>' +
+        '</div>' +
+        '<div class="tags">' +
+          batch.done.map(o => tag(o, true)).join('') +
+          batch.ops.map(o => tag(o, false)).join('') +
+        '</div>' +
+        (rdy ? '<div class="runcard__foot">' +
+          '<button class="btn btn--sm" data-finish-batch="' + batch.planIndex + '">Mark ' + rdy + ' done</button>' +
+          '<span class="hint" style="margin:0">or tick items one at a time</span></div>' : '') +
+      '</div>' +
+    '</div>';
+  });
+
+  h += '</div><div class="rail">';
+
+  /* steps rail */
+  h += '<div class="eyebrow" style="margin-bottom:8px">Steps</div>';
+  if (!state.steps.length) {
+    h += '<div class="empty">No steps defined. Add them on Define to track what your finished items feed into.</div>';
+  } else {
+    const depth = s => {
+      let d = 0;
+      subSteps(s).forEach(sid => { const c = step(sid); if (c) d = Math.max(d, depth(c) + 1); });
+      return d;
+    };
+    state.steps.slice().sort((a, x) => depth(a) - depth(x)).forEach(s => {
+      const ids = Array.from(stepItemSet(s.id));
+      const tot = ids.reduce((n, id) => n + routeOf(id).length, 0);
+      const dn = ids.reduce((n, id) => n + prog(id), 0);
+      const ready = stepDone(s.id);
+      const when = ids.reduce((m, id) => Math.max(m, plan.finish[id] === undefined ? 999 : plan.finish[id]), 0);
+      h += '<div class="stepitem" data-ready="' + (ready ? 1 : 0) + '" data-prio="' + (state.priority.indexOf(s.id) > -1 ? 1 : 0) + '">' +
+        '<div class="stepitem__head">' +
+          '<span class="stepitem__name">' + esc(s.name) + '</span>' +
+          '<button class="star" data-prio="' + s.id + '" aria-pressed="' + (state.priority.indexOf(s.id) > -1) + '" title="Mark urgent">★</button>' +
+        '</div>' +
+        '<div class="bar"><div class="bar__fill" style="width:' + (tot ? Math.round(dn / tot * 100) : 100) + '%"></div></div>' +
+        '<div class="stepitem__when">' +
+          (!ids.length ? 'Nothing attached'
+            : ready ? '✓ Clear to assemble'
+            : 'Clear after batch ' + dispNum(when)) +
+        '</div>' +
+        '<div class="stepitem__items">' +
+          subSteps(s).map(sid => {
+            const sub = step(sid);
+            if (!sub) return '';
+            return '<span class="pill pill--step" data-done="' + (stepDone(sid) ? 1 : 0) + '">' + esc(sub.name) + '</span>';
+          }).join('') +
+          ownItems(s).map(id => {
+            const it = item(id);
+            if (!it) return '';
+            return '<span class="pill" data-done="' + (itemDone(id) ? 1 : 0) + '">' + esc(it.code) + '</span>';
+          }).join('') +
+        '</div>' +
+      '</div>';
+    });
+  }
+
+  const loose = state.items.filter(i => !state.steps.some(s => ownItems(s).indexOf(i.id) > -1));
+  if (loose.length) {
+    h += '<div class="stepitem" style="border-style:dashed">' +
+      '<div class="stepitem__head"><span class="stepitem__name" style="color:var(--ink-2)">Not in any step</span></div>' +
+      '<div class="stepitem__items">' + loose.map(i =>
+        '<span class="pill" data-done="' + (itemDone(i.id) ? 1 : 0) + '">' + esc(i.code) + '</span>').join('') + '</div>' +
+    '</div>';
+  }
+
+  h += '</div></div>';
+
+  /* per-item progress: each item's own route, in order */
+  h += '<details class="fold" id="fold-matrix"' + (foldOpen ? ' open' : '') + '><summary>Item-by-item progress</summary>' +
+    '<div class="legend">' +
+      '<span><i class="swatch" style="background:var(--go-tint);border-color:var(--go)"></i>done</span>' +
+      '<span><i class="swatch" style="box-shadow:inset 0 0 0 2px var(--blue);background:var(--white)"></i>next up</span>' +
+      '<span><i class="swatch" style="background-image:repeating-linear-gradient(45deg,transparent 0 3px,rgba(20,24,27,.18) 3px 6px)"></i>waiting</span>' +
+      '<span style="color:var(--ink-3)">click to tick work off, or to put it back</span>' +
+    '</div>' +
+    '<div class="panel"><div class="panel__body">' +
+    state.items.map(it => {
+      const r = routeOf(it.id), p = prog(it.id);
+      return '<div class="strip"><div class="strip__id">' +
+          '<span class="mx__code">' + esc(it.code) + '</span>' +
+          '<span class="mx__nm">' + esc(it.name) + '</span>' +
+        '</div><div class="strip__ops">' +
+        (r.length ? r.map((w, i) => {
+          const s = i < p ? 'done' : (i === p ? 'now' : 'wait');
+          return '<button class="ostep" data-s="' + s + '"' +
+            (s === 'wait' ? ' disabled' : ' data-track="' + it.id + '" data-idx="' + i + '"') + '>' +
+            '<span class="n">' + String(i + 1).padStart(2, '0') + '</span>' + esc(workName(w)) +
+            (s === 'done' ? ' ✓' : '') + '</button>';
+        }).join('') : '<span class="hint" style="margin:0">No route — counts as finished</span>') +
+      '</div></div>';
+    }).join('') +
+    '</div></div></details>';
+
+  host.innerHTML = h;
+}
+let foldOpen = false;
+
+/* ============================================================
+   The library — runsheets kept in this browser's local storage.
+   One key holds every sheet; the open one is written back whenever
+   something about it actually changes.
+   ============================================================ */
+const LS_KEY = 'runsheet.v1';
+let store = { active: null, sheets: [] };
+let lastSaved = null;
+
+const canStore = (() => {
+  try {
+    localStorage.setItem('__rs_probe', '1');
+    localStorage.removeItem('__rs_probe');
+    return true;
+  } catch (err) { return false; }
+})();
+
+const emptyData = () => ({ items: [], works: [], steps: [], routes: {}, progress: {}, ledger: [], priority: [] });
+const currentSheet = () => store.sheets.filter(s => s.id === store.active)[0] || null;
+
+function sheetData() {
+  return {
+    items: state.items, works: state.works, steps: state.steps,
+    routes: state.routes, progress: state.progress, ledger: state.ledger,
+    priority: state.priority
+  };
+}
+function applyData(d) {
+  d = d || {};
+  state.items = d.items || [];
+  state.works = d.works || [];
+  state.steps = (d.steps || []).map(s => ({ id: s.id, name: s.name, itemIds: s.itemIds || [], stepIds: s.stepIds || [] }));
+  state.routes = d.routes || {};
+  state.progress = d.progress || {};
+  state.ledger = d.ledger || [];
+  state.priority = d.priority || [];
+  state.picked = {}; state.focus = null; state.edit = null; state.confirm = null; state.workFilter = '';
+}
+
+function loadStore() {
+  if (!canStore) return;
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.sheets)) store = parsed;
+    }
+  } catch (err) { /* unreadable store — start fresh rather than block the app */ }
+}
+function writeStore() {
+  if (!canStore) return;
+  try { localStorage.setItem(LS_KEY, JSON.stringify(store)); }
+  catch (err) { toast('This browser is out of storage — use Save file'); }
+}
+
+/* called after every change; only writes when the sheet really moved */
+function persist() {
+  const s = currentSheet();
+  if (!s) return;
+  const snap = JSON.stringify({ t: state.title, d: state.description, data: sheetData() });
+  if (snap === lastSaved) return;
+  const first = lastSaved === null;
+  lastSaved = snap;
+  const parsed = JSON.parse(snap);
+  s.title = parsed.t; s.description = parsed.d; s.data = parsed.data;
+  if (!first) s.updated = Date.now();
+  else if (!s.updated) s.updated = Date.now();
+  writeStore();
+}
+
+/* an untouched, unnamed sheet is scaffolding, not work — don't leave it lying around */
+const isBlank = s => !s.title && !s.description &&
+  !((s.data || {}).items || []).length && !((s.data || {}).works || []).length && !((s.data || {}).steps || []).length;
+function pruneBlank(keepId) {
+  store.sheets = store.sheets.filter(s => s.id === keepId || !isBlank(s));
+}
+function makeSheet(title, description, data) {
+  const s = {
+    id: uid('sh'), title: title || '', description: description || '',
+    updated: Date.now(), data: data || emptyData()
+  };
+  store.sheets.push(s);
+  return s;
+}
+function openSheet(id) {
+  persist();
+  const s = store.sheets.filter(x => x.id === id)[0];
+  if (!s) return;
+  pruneBlank(s.id);
+  store.active = s.id;
+  state.title = s.title || '';
+  state.description = s.description || '';
+  applyData(s.data);
+  lastSaved = null;
+  persist();
+  writeStore();
+  go('define');
+}
+function newSheet(title, description, data) {
+  persist();
+  const s = makeSheet(title, description, data);
+  pruneBlank(s.id);
+  store.active = s.id;
+  state.title = s.title;
+  state.description = s.description;
+  applyData(s.data);
+  lastSaved = null;
+  persist();
+  go('define');
+}
+function duplicateSheet(id) {
+  persist();
+  const s = store.sheets.filter(x => x.id === id)[0];
+  if (!s) return;
+  const copy = makeSheet((s.title || 'Untitled runsheet') + ' (copy)', s.description, JSON.parse(JSON.stringify(s.data)));
+  writeStore();
+  toast('Copied to ' + copy.title);
+  render();
+}
+function deleteSheet(id) {
+  const wasOpen = store.active === id;
+  store.sheets = store.sheets.filter(x => x.id !== id);
+  state.confirm = null;
+  if (wasOpen) {
+    lastSaved = null;
+    if (store.sheets.length) {
+      const next = store.sheets.slice().sort((a, b) => b.updated - a.updated)[0];
+      store.active = next.id;
+      state.title = next.title || ''; state.description = next.description || '';
+      applyData(next.data);
+    } else {
+      const s = makeSheet('', '', emptyData());
+      store.active = s.id;
+      state.title = ''; state.description = '';
+      applyData(s.data);
+    }
+    persist();
+  }
+  writeStore();
+  render();
+}
+
+function ago(ts) {
+  if (!ts) return 'never';
+  const s = (Date.now() - ts) / 1000;
+  if (s < 60) return 'just now';
+  if (s < 3600) return Math.round(s / 60) + ' min ago';
+  if (s < 86400) return Math.round(s / 3600) + ' hr ago';
+  if (s < 604800) return Math.round(s / 86400) + ' days ago';
+  return new Date(ts).toLocaleDateString();
+}
+function sheetStats(d) {
+  const routes = d.routes || {}, progress = d.progress || {};
+  let ops = 0, done = 0;
+  (d.items || []).forEach(i => {
+    const r = (routes[i.id] || []).length;
+    ops += r;
+    done += Math.min(progress[i.id] || 0, r);
+  });
+  return { ops: ops, done: done, pct: ops ? Math.round(done / ops * 100) : 0 };
+}
+
+/* ============================================================
+   The library screen
+   ============================================================ */
+function renderSheets() {
+  const host = $('#sheets-body');
+  const cur = currentSheet();
+  if (cur) { cur.title = state.title; cur.description = state.description; cur.data = sheetData(); }
+
+  let h = '<div class="viewhead"><div class="eyebrow">Library</div>' +
+    '<h1>Every runsheet you have on this browser.</h1>' +
+    '<p>They stay on this machine — nothing is uploaded. Save one to a file if you need it somewhere else.</p></div>';
+
+  if (!canStore) {
+    h += '<div class="storenote"><span>⚠</span><span>This browser is blocking local storage, so sheets last only until you close the tab. ' +
+      'Use <b>Save file</b> to keep your work.</span></div>';
+  }
+
+  h += '<div class="toolbar">' +
+    '<button class="btn btn--solid" data-new-sheet>New runsheet</button>' +
+    '<button class="btn btn--ghost" data-new-sample>Start from the sample job</button>' +
+    '<button class="btn btn--ghost" id="btn-import-2">Open a file</button>' +
+    '<span class="row__spacer"></span>' +
+    '<span class="eyebrow">' + store.sheets.length + ' saved</span>' +
+    '</div>';
+
+  const sorted = store.sheets.slice().sort((a, b) => (b.updated || 0) - (a.updated || 0));
+  h += '<div class="sheetgrid">' + sorted.map(s => {
+    const d = s.data || emptyData();
+    const st = sheetStats(d);
+    const open = s.id === store.active;
+    if (state.confirm && state.confirm.kind === 'sheet' && state.confirm.id === s.id) {
+      return '<div class="sheetcard sheetcard--danger">' +
+        '<div class="danger danger--card"><span class="danger__msg">Delete <b>' +
+          esc(s.title || 'Untitled runsheet') + '</b>? Its items, routes and ticked-off work go with it.</span>' +
+          '<span class="row__spacer"></span>' +
+          '<button class="btn btn--sm btn--danger" data-do-del-sheet="' + s.id + '">Delete</button>' +
+          '<button class="btn btn--sm btn--ghost" data-keep-sheet>Keep</button>' +
+        '</div></div>';
+    }
+    return '<div class="sheetcard" data-open="' + (open ? 1 : 0) + '">' +
+      '<h3 class="sheetcard__title">' + esc(s.title || 'Untitled runsheet') + '</h3>' +
+      (s.description ? '<p class="sheetcard__desc">' + esc(s.description) + '</p>' : '') +
+      '<div class="sheetcard__meta">' +
+        (d.items || []).length + ' items · ' + (d.works || []).length + ' work types · ' +
+        (d.steps || []).length + ' steps</div>' +
+      '<div class="sheetcard__bar"><i style="width:' + st.pct + '%"></i></div>' +
+      '<div class="sheetcard__meta">' + st.done + ' / ' + st.ops + ' operations done · edited ' + ago(s.updated) + '</div>' +
+      '<div class="sheetcard__acts">' +
+        (open ? '<span class="openflag">Open now</span>'
+              : '<button class="btn btn--sm btn--solid" data-open-sheet="' + s.id + '">Open</button>') +
+        '<button class="btn btn--sm btn--ghost" data-dupe-sheet="' + s.id + '">Duplicate</button>' +
+        '<button class="btn btn--sm btn--ghost" data-save-sheet="' + s.id + '">Save file</button>' +
+        '<button class="btn btn--sm btn--ghost" data-del-sheet="' + s.id + '">Delete</button>' +
+      '</div>' +
+    '</div>';
+  }).join('') + '</div>';
+
+  host.innerHTML = h;
+}
+
+/* ============================================================
+   Render + tabs
+   ============================================================ */
+function render() {
+  persist();
+  $$('.tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.tab === state.tab)));
+  $$('.view').forEach(v => v.classList.toggle('is-active', v.id === 'view-' + state.tab));
+  $('#btn-sheets').setAttribute('aria-current', String(state.tab === 'sheets'));
+  $('#topbar-title').textContent = state.title || 'Untitled runsheet';
+  if (state.tab === 'define') {
+    $('#sheet-title').value = state.title;
+    $('#sheet-desc').value = state.description;
+    renderDefine();
+  }
+  if (state.tab === 'route')  renderRoute();
+  if (state.tab === 'run')    renderRun();
+  if (state.tab === 'sheets') renderSheets();
+}
+function go(tab) { state.tab = tab; state.confirm = null; state.edit = null; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+
+/* ============================================================
+   Events
+   ============================================================ */
+$('#tabs').addEventListener('click', e => {
+  const t = e.target.closest('.tab');
+  if (t) go(t.dataset.tab);
+});
+
+/* -- define: items -- */
+function addFromLines(raw) {
+  let n = 0;
+  raw.split('\n').map(l => l.trim()).filter(Boolean).forEach(l => {
+    const parts = l.split(/[,\t]|\s-\s/);
+    const code = (parts[0] || '').trim();
+    const name = parts.slice(1).join(', ').trim();
+    if (code) { state.items.push({ id: uid('it'), code: code, name: name }); n++; }
+  });
+  return n;
+}
+function addItems() {
+  const codeEl = $('#in-item-code'), nameEl = $('#in-item-name');
+  const raw = nameEl.value.trim();
+  const code = codeEl.value.trim() || raw.split(/\s+/)[0] || '';
+  if (!code) { toast('Give the item a code'); return; }
+  const name = codeEl.value.trim() ? raw : raw.split(/\s+/).slice(1).join(' ');
+  state.items.push({ id: uid('it'), code: code, name: name });
+  codeEl.value = ''; nameEl.value = ''; codeEl.focus();
+  render();
+}
+/* pasting a list — one item per line — adds them all at once */
+function pasteItems(e) {
+  const txt = ((e.clipboardData || window.clipboardData) || { getData: () => '' }).getData('text');
+  if (!txt || txt.indexOf('\n') < 0) return;
+  e.preventDefault();
+  const n = addFromLines(txt);
+  $('#in-item-code').value = ''; $('#in-item-name').value = '';
+  render();
+  toast(n ? n + ' item' + (n > 1 ? 's' : '') + ' added' : 'No codes found in that list');
+}
+function pasteList(e, kind) {
+  const txt = ((e.clipboardData || window.clipboardData) || { getData: () => '' }).getData('text');
+  if (!txt || txt.indexOf('\n') < 0) return;
+  e.preventDefault();
+  const lines = txt.split('\n').map(l => l.trim()).filter(Boolean);
+  lines.forEach(l => {
+    if (kind === 'work') state.works.push({ id: uid('wk'), name: l });
+    else state.steps.push({ id: uid('st'), name: l, itemIds: [], stepIds: [] });
+  });
+  e.target.value = '';
+  render();
+  const label = kind === 'work' ? 'work type' : 'step';
+  toast(lines.length ? lines.length + ' ' + label + (lines.length > 1 ? 's' : '') + ' added' : 'Nothing to add');
+}
+$('#in-item-code').addEventListener('paste', pasteItems);
+$('#in-item-name').addEventListener('paste', pasteItems);
+$('#btn-add-item').addEventListener('click', addItems);
+$('#in-item-code').addEventListener('keydown', e => { if (e.key === 'Enter') $('#in-item-name').focus(); });
+$('#in-item-name').addEventListener('keydown', e => { if (e.key === 'Enter') addItems(); });
+
+$('#btn-add-work').addEventListener('click', addWork);
+$('#in-work-name').addEventListener('paste', e => pasteList(e, 'work'));
+$('#in-step-name').addEventListener('paste', e => pasteList(e, 'step'));
+$('#in-work-name').addEventListener('keydown', e => { if (e.key === 'Enter') addWork(); });
+function addWork() {
+  const el = $('#in-work-name'), v = el.value.trim();
+  if (!v) return;
+  state.works.push({ id: uid('wk'), name: v });
+  el.value = ''; el.focus(); render();
+}
+
+$('#btn-add-step').addEventListener('click', addStep);
+$('#in-step-name').addEventListener('keydown', e => { if (e.key === 'Enter') addStep(); });
+function addStep() {
+  const el = $('#in-step-name'), v = el.value.trim();
+  if (!v) return;
+  state.steps.push({ id: uid('st'), name: v, itemIds: [], stepIds: [] });
+  el.value = ''; el.focus(); render();
+}
+
+function openEdit(kind, id) {
+  commitEdit();
+  state.confirm = null;
+  state.edit = { kind: kind, id: id };
+  renderDefine();
+}
+$('#view-define').addEventListener('keydown', e => {
+  if (e.key === 'Escape' && state.confirm) { state.confirm = null; return renderDefine(); }
+  if (!state.edit) return;
+  if (e.key === 'Enter') { e.preventDefault(); commitEdit(); renderDefine(); }
+  if (e.key === 'Escape') { state.edit = null; renderDefine(); }
+});
+/* clicking away keeps the edit rather than throwing it out */
+$('#view-define').addEventListener('focusout', () => {
+  if (!state.edit) return;
+  setTimeout(() => {
+    const row = $('.row--edit');
+    if (!state.edit || (row && row.contains(document.activeElement))) return;
+    commitEdit();
+    renderDefine();
+  }, 0);
+});
+
+$('#view-define').addEventListener('click', e => {
+  const t = e.target;
+  if (t.closest('[data-keep]')) { state.confirm = null; return renderDefine(); }
+  if (t.closest('[data-do-del]')) { return doDelete(state.confirm.kind, state.confirm.id); }
+  if (t.closest('[data-cancel-edit]')) { state.edit = null; return renderDefine(); }
+  if (t.closest('[data-save-edit]')) { commitEdit(); return renderDefine(); }
+  const ei = t.closest('[data-edit-item]');
+  if (ei) return openEdit('item', ei.dataset.editItem);
+  const ew = t.closest('[data-edit-work]');
+  if (ew) return openEdit('work', ew.dataset.editWork);
+  const es = t.closest('[data-edit-step]');
+  if (es) return openEdit('step', es.dataset.editStep);
+  const di = t.closest('[data-del-item]');
+  if (di) { state.edit = null; state.confirm = { kind: 'item', id: di.dataset.delItem }; return renderDefine(); }
+  const dw = t.closest('[data-del-work]');
+  if (dw) { state.edit = null; state.confirm = { kind: 'work', id: dw.dataset.delWork }; return renderDefine(); }
+  const mw = t.closest('[data-move-work]');
+  if (mw) {
+    const id = mw.dataset.moveWork, d = Number(mw.dataset.dir);
+    const i = state.works.findIndex(w => w.id === id), j = i + d;
+    if (j < 0 || j >= state.works.length) return;
+    const tmp = state.works[i]; state.works[i] = state.works[j]; state.works[j] = tmp;
+    return render();
+  }
+  const ds = t.closest('[data-del-step]');
+  if (ds) { state.edit = null; state.confirm = { kind: 'step', id: ds.dataset.delStep }; return renderDefine(); }
+  const si = t.closest('[data-step-item]');
+  if (si) {
+    const st = step(si.dataset.stepItem), id = si.dataset.item;
+    if (!st) return;
+    const k = st.itemIds.indexOf(id);
+    if (k > -1) st.itemIds.splice(k, 1); else st.itemIds.push(id);
+    return render();
+  }
+  const ss = t.closest('[data-step-sub]');
+  if (ss) {
+    const st = step(ss.dataset.stepSub), id = ss.dataset.sub;
+    if (!st) return;
+    st.stepIds = subSteps(st);
+    const k = st.stepIds.indexOf(id);
+    if (k > -1) st.stepIds.splice(k, 1);
+    else if (!wouldLoop(st.id, id)) st.stepIds.push(id);
+    return render();
+  }
+});
+
+/* -- route -- */
+$('#view-route').addEventListener('click', e => {
+  const focus = e.target.closest('[data-focus]');
+  if (focus) {
+    state.focus = focus.dataset.focus;
+    renderRoute();
+    if (window.innerWidth <= 1020) {
+      const ed = $$('#route-body .panel')[1];
+      if (ed) ed.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    return;
+  }
+
+  const f = state.focus;
+  const mv = e.target.closest('[data-move-op]');
+  if (mv) {
+    const i = Number(mv.dataset.moveOp), j = i + Number(mv.dataset.dir);
+    const r = routeOf(f).slice();
+    if (j < 0 || j >= r.length) return;
+    const t = r[i]; r[i] = r[j]; r[j] = t;
+    state.routes[f] = r;
+    return renderRoute();
+  }
+  const rm = e.target.closest('[data-drop-op]');
+  if (rm) {
+    const r = routeOf(f).slice();
+    r.splice(Number(rm.dataset.dropOp), 1);
+    state.routes[f] = r;
+    fitProgress(f);
+    return renderRoute();
+  }
+  const add = e.target.closest('[data-add-work]');
+  if (add) {
+    const w = add.dataset.addWork;
+    const r = routeOf(f).slice();
+    const repeat = r.indexOf(w) > -1;
+    r.push(w);
+    state.routes[f] = r;
+    renderRoute();
+    if (repeat) toast(workName(w) + ' added again — a route can repeat an operation');
+    return;
+  }
+  if (e.target.id === 'btn-clear-route') {
+    state.routes[f] = [];
+    fitProgress(f);
+    return renderRoute();
+  }
+  if (e.target.id === 'btn-apply-picked') {
+    const r = routeOf(f).slice();
+    const targets = state.items.filter(i => state.picked[i.id]);
+    targets.forEach(i => { state.routes[i.id] = r.slice(); fitProgress(i.id); });
+    toast('Route copied to ' + targets.length + ' item' + (targets.length > 1 ? 's' : ''));
+    return renderRoute();
+  }
+});
+
+$('#view-route').addEventListener('change', e => {
+  if (e.target.id === 'sel-all') {
+    const on = e.target.checked;
+    state.items.forEach(i => { state.picked[i.id] = on; });
+    return renderRoute();
+  }
+  const p = e.target.closest('[data-pick]');
+  if (p) { state.picked[p.dataset.pick] = p.checked; return renderRoute(); }
+  if (e.target.id === 'copy-from') {
+    const from = e.target.value;
+    if (!from) return;
+    state.routes[state.focus] = routeOf(from).slice();
+    fitProgress(state.focus);
+    toast('Copied the route from ' + item(from).code);
+    return renderRoute();
+  }
+});
+
+$('#view-route').addEventListener('input', e => {
+  if (e.target.id !== 'work-filter') return;
+  state.workFilter = e.target.value;
+  const pal = $('#work-palette');
+  if (pal) pal.innerHTML = paletteHTML(routeOf(state.focus));
+});
+
+/* drag to reorder; the arrows do the same job for keyboards and touch */
+let dragFrom = null;
+$('#view-route').addEventListener('dragstart', e => {
+  const li = e.target.closest('.op');
+  if (!li) return;
+  dragFrom = Number(li.dataset.op);
+  li.classList.add('is-drag');
+  e.dataTransfer.effectAllowed = 'move';
+  try { e.dataTransfer.setData('text/plain', String(dragFrom)); } catch (err) {}
+});
+$('#view-route').addEventListener('dragover', e => {
+  const li = e.target.closest('.op');
+  if (!li || dragFrom === null) return;
+  e.preventDefault();
+  const box = li.getBoundingClientRect();
+  const after = (e.clientY - box.top) > box.height / 2;
+  $$('.op').forEach(o => o.classList.remove('is-over', 'is-over-after'));
+  li.classList.add(after ? 'is-over-after' : 'is-over');
+});
+$('#view-route').addEventListener('drop', e => {
+  const li = e.target.closest('.op');
+  if (!li || dragFrom === null) return;
+  e.preventDefault();
+  const box = li.getBoundingClientRect();
+  const after = (e.clientY - box.top) > box.height / 2;
+  let to = Number(li.dataset.op) + (after ? 1 : 0);
+  const r = routeOf(state.focus).slice();
+  const [moved] = r.splice(dragFrom, 1);
+  if (dragFrom < to) to--;
+  r.splice(Math.max(0, Math.min(to, r.length)), 0, moved);
+  state.routes[state.focus] = r;
+  dragFrom = null;
+  renderRoute();
+});
+$('#view-route').addEventListener('dragend', () => {
+  dragFrom = null;
+  $$('.op').forEach(o => o.classList.remove('is-drag', 'is-over', 'is-over-after'));
+});
+
+/* -- run -- */
+$('#view-run').addEventListener('click', e => {
+  const tick = e.target.closest('[data-tick]');
+  if (tick) {
+    const id = tick.dataset.tick;
+    tickOp(id, Number(tick.dataset.idx));
+    return;
+  }
+  const un = e.target.closest('[data-untick]');
+  if (un) { rollback(un.dataset.untick, Number(un.dataset.idx)); return; }
+  const fin = e.target.closest('[data-finish-batch]');
+  if (fin) {
+    const plan = computePlan();
+    const b = plan.batches[Number(fin.dataset.finishBatch)];
+    if (!b) return;
+    b.ops.filter(opReady).forEach(o => { state.progress[o.itemId] = o.idx + 1; logOp(o.itemId, o.idx); });
+    toast(workName(b.workId) + ' batch marked done');
+    return render();
+  }
+  const pr = e.target.closest('[data-prio]');
+  if (pr) {
+    const id = pr.dataset.prio, i = state.priority.indexOf(id);
+    if (i > -1) state.priority.splice(i, 1); else state.priority.push(id);
+    return render();
+  }
+  const tr = e.target.closest('[data-track]');
+  if (tr) {
+    const id = tr.dataset.track, idx = Number(tr.dataset.idx), p = prog(id);
+    if (idx === p) tickOp(id, idx);
+    else if (idx < p) rollback(id, idx);
+    else toast('Earlier work has to happen first');
+    return;
+  }
+});
+$('#view-run').addEventListener('toggle', e => {
+  if (e.target.id === 'fold-matrix') foldOpen = e.target.open;
+}, true);
+
+/* -- file + sample -- */
+const slug = s => (s || 'runsheet').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'runsheet';
+function saveFile(sheet) {
+  const src = sheet || { title: state.title, description: state.description, data: sheetData() };
+  const d = src.data;
+  const blob = new Blob([JSON.stringify({
+    v: 2, title: src.title, description: src.description,
+    items: d.items, works: d.works, steps: d.steps,
+    routes: d.routes, progress: d.progress, ledger: d.ledger, priority: d.priority
+  }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = slug(src.title) + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('Saved ' + a.download);
+}
+$('#btn-export').addEventListener('click', () => { persist(); saveFile(null); });
+$('#btn-import').addEventListener('click', () => $('#file-input').click());
+$('#file-input').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const fr = new FileReader();
+  fr.onload = () => {
+    try {
+      const d = JSON.parse(fr.result);
+      newSheet(d.title || f.name.replace(/\.json$/i, ''), d.description || '', {
+        items: d.items || [], works: d.works || [], steps: d.steps || [],
+        routes: d.routes || {}, progress: d.progress || {}, ledger: d.ledger || [],
+        priority: d.priority || []
+      });
+      toast('Opened ' + f.name);
+    } catch (err) { toast("That file isn't a runsheet"); }
+  };
+  fr.readAsText(f);
+  e.target.value = '';
+});
+function sampleData() {
+  const W = ['Cut', 'Machine', 'Weld', 'Deburr', 'Prime', 'Powder coat'].map(n => ({ id: uid('wk'), name: n }));
+  const wid = n => W[['Cut', 'Machine', 'Weld', 'Deburr', 'Prime', 'Powder coat'].indexOf(n)].id;
+  const defs = [
+    ['FRM-01', 'Base frame rail, left',  ['Cut', 'Machine', 'Weld', 'Deburr', 'Prime', 'Powder coat']],
+    ['FRM-02', 'Base frame rail, right', ['Cut', 'Machine', 'Weld', 'Deburr', 'Prime', 'Powder coat']],
+    ['FRM-03', 'Cross brace',            ['Cut', 'Weld', 'Deburr', 'Prime', 'Powder coat']],
+    ['PNL-01', 'Side panel, left',       ['Cut', 'Machine', 'Deburr', 'Prime', 'Powder coat']],
+    ['PNL-02', 'Side panel, right',      ['Cut', 'Machine', 'Deburr', 'Prime', 'Powder coat']],
+    ['PNL-03', 'Back panel',             ['Cut', 'Deburr', 'Prime', 'Powder coat']],
+    ['SHF-01', 'Shelf',                  ['Cut', 'Machine', 'Deburr', 'Prime', 'Powder coat']],
+    ['DOR-01', 'Door skin, galvanised',  ['Cut', 'Machine', 'Deburr', 'Powder coat']],
+    ['DOR-02', 'Door frame, galvanised', ['Cut', 'Weld', 'Deburr', 'Powder coat']],
+    ['HDL-01', 'Handle bracket',         ['Cut', 'Machine', 'Deburr', 'Powder coat']],
+    ['GSK-01', 'Gasket strip',           ['Cut']]
+  ];
+  const items = [], routes = {};
+  defs.forEach(d => {
+    const it = { id: uid('it'), code: d[0], name: d[1] };
+    items.push(it);
+    routes[it.id] = d[2].map(wid);
+  });
+  const pick = codes => items.filter(i => codes.indexOf(i.code) > -1).map(i => i.id);
+  const frame = { id: uid('st'), name: 'Frame weld-up', itemIds: pick(['FRM-01', 'FRM-02', 'FRM-03']), stepIds: [] };
+  const doors = { id: uid('st'), name: 'Door assembly', itemIds: pick(['DOR-01', 'DOR-02', 'HDL-01']), stepIds: [] };
+  const body  = { id: uid('st'), name: 'Cabinet body',  itemIds: pick(['PNL-01', 'PNL-02', 'PNL-03', 'SHF-01']), stepIds: [frame.id] };
+  const final = { id: uid('st'), name: 'Final assembly', itemIds: pick(['GSK-01']), stepIds: [body.id, doors.id] };
+  return {
+    items: items, works: W, routes: routes, progress: {}, ledger: [], priority: [],
+    steps: [frame, doors, body, final]
+  };
+}
+
+render();
+
+$('#btn-sheets').addEventListener('click', () => { state.tab = 'sheets'; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+
+$('#view-define').addEventListener('input', e => {
+  if (e.target.id === 'sheet-title') {
+    state.title = e.target.value;
+    $('#topbar-title').textContent = state.title || 'Untitled runsheet';
+    persist();
+  }
+  if (e.target.id === 'sheet-desc') { state.description = e.target.value; persist(); }
+});
+
+$('#view-sheets').addEventListener('click', e => {
+  const t = e.target;
+  if (t.closest('[data-new-sheet]')) return newSheet('', '', emptyData());
+  if (t.closest('[data-new-sample]')) return newSheet('Sample job — steel cabinet', 'A worked example: 11 parts, six work types, four assemblies.', sampleData());
+  if (t.id === 'btn-import-2') return $('#file-input').click();
+  if (t.closest('[data-keep-sheet]')) { state.confirm = null; return renderSheets(); }
+  const dd = t.closest('[data-do-del-sheet]');
+  if (dd) return deleteSheet(dd.dataset.doDelSheet);
+  const op = t.closest('[data-open-sheet]');
+  if (op) return openSheet(op.dataset.openSheet);
+  const du = t.closest('[data-dupe-sheet]');
+  if (du) return duplicateSheet(du.dataset.dupeSheet);
+  const sv = t.closest('[data-save-sheet]');
+  if (sv) {
+    persist();
+    return saveFile(store.sheets.filter(x => x.id === sv.dataset.saveSheet)[0]);
+  }
+  const de = t.closest('[data-del-sheet]');
+  if (de) { state.confirm = { kind: 'sheet', id: de.dataset.delSheet }; return renderSheets(); }
+});
+
+/* boot: reopen whatever was last in front of you */
+loadStore();
+if (!store.sheets.length) {
+  const s = makeSheet('', '', emptyData());
+  store.active = s.id;
+}
+if (!currentSheet()) store.active = store.sheets.slice().sort((a, b) => (b.updated || 0) - (a.updated || 0))[0].id;
+(function boot() {
+  const s = currentSheet();
+  state.title = s.title || '';
+  state.description = s.description || '';
+  applyData(s.data);
+  lastSaved = null;
+  if (!(state.items.length || state.works.length)) state.tab = 'sheets';
+})();
+render();
+
+</script>
+</body>
+</html>
