@@ -112,21 +112,33 @@ input,select,textarea{font-family:inherit;font-size:14px;color:var(--ink)}
 .tab[aria-selected="true"] .tab__n{color:var(--blue)}
 .topbar__tools{display:flex;align-items:center;gap:6px;padding:12px 0}
 
-.sheetpick{
-  display:flex;align-items:center;gap:8px;background:none;border:0;border-left:1px solid var(--rule);
-  padding:0 16px;margin:10px 0;cursor:pointer;max-width:340px;min-width:0;
+/* ---------- two modes: the job, and the library ---------- */
+.jobbar{
+  display:flex;align-items:center;gap:11px;min-width:0;max-width:420px;
+  border-left:1px solid var(--rule);padding-left:16px;margin:12px 0;
 }
-.sheetpick:hover .sheetpick__name{text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px}
-.sheetpick__label{
-  font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.14em;
-  text-transform:uppercase;color:var(--ink-3);flex:none;
+.crumb{
+  font-weight:700;font-size:14px;letter-spacing:-.01em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;
 }
-.sheetpick__name{
-  font-weight:700;font-size:14px;letter-spacing:-.01em;overflow:hidden;
-  text-overflow:ellipsis;white-space:nowrap;min-width:0;
-}
-.sheetpick__caret{color:var(--ink-3);font-size:10px;flex:none}
-.tab--sheets[aria-selected="true"]{color:var(--ink)}
+.crumb--none{color:var(--ink-3);font-weight:500;font-style:italic}
+.libbar{display:none;margin-left:auto;align-items:center;padding:12px 0;min-width:0}
+.libbar .btn{display:flex;align-items:center;gap:5px;max-width:44vw;white-space:nowrap}
+#back-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+
+body.mode-library{background-color:#CACEC7;background-image:none}
+body.mode-library .jobbar,
+body.mode-library #tabs,
+body.mode-library #tools{display:none}
+body.mode-library .libbar{display:flex}
+body.mode-library .topbar{background:var(--ink);border-bottom-color:var(--ink)}
+body.mode-library .brand__name{color:var(--panel)}
+body.mode-library .brand__sub{color:#7E8785}
+body.mode-library .brand__mark{background:var(--panel);color:var(--ink);border-color:var(--panel)}
+body.mode-library .libbar .btn{background:transparent;border-color:#6E7674;color:var(--panel)}
+body.mode-library .libbar .btn:hover{background:var(--panel);border-color:var(--panel);color:var(--ink)}
+body.mode-library .sheetcard{box-shadow:3px 3px 0 rgba(20,24,27,.10)}
+body.mode-library .sheetcard[data-open="1"]{box-shadow:4px 4px 0 rgba(20,24,27,.16)}
 
 /* ---------- sheet header on define ---------- */
 .sheethead{margin:0 0 20px;padding-bottom:14px;border-bottom:1.5px solid var(--ink)}
@@ -143,7 +155,7 @@ input,select,textarea{font-family:inherit;font-size:14px;color:var(--ink)}
 .sheethead__title:focus,.sheethead__desc:focus{outline:none;background:var(--blue-tint)}
 
 /* ---------- library ---------- */
-.sheetgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:14px}
+.sheetgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}
 .sheetcard{
   background:var(--panel);border:1px solid var(--rule);border-radius:3px;padding:14px;
   box-shadow:3px 3px 0 rgba(20,24,27,.05);display:flex;flex-direction:column;gap:9px;
@@ -155,12 +167,15 @@ input,select,textarea{font-family:inherit;font-size:14px;color:var(--ink)}
 .sheetcard__meta{font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.04em;text-transform:uppercase;font-weight:700}
 .sheetcard__bar{height:4px;background:var(--white);border:1px solid var(--rule-2);border-radius:2px;overflow:hidden}
 .sheetcard__bar i{display:block;height:100%;background:var(--go)}
-.sheetcard__acts{display:flex;gap:5px;flex-wrap:wrap;margin-top:auto;padding-top:3px}
-.openflag{
-  font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
-  color:var(--go);border:1.5px solid var(--go);border-radius:2px;padding:4px 7px;
+.sheetcard__acts{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:auto;padding-top:5px}
+.linkrow{display:flex;align-items:center;gap:9px;margin-left:auto}
+.linkbtn{
+  background:none;border:0;padding:0;cursor:pointer;
+  font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ink-3);
 }
-.sheetpick--none .sheetpick__name{color:var(--ink-3);font-weight:500;font-style:italic}
+.linkbtn:hover{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+.linkbtn--del:hover{color:var(--stop)}
 .tab:disabled{opacity:.35;cursor:not-allowed}
 .tab:disabled:hover{color:var(--ink-3)}
 .firstrun{
@@ -526,7 +541,9 @@ details.fold > summary:hover{color:var(--ink)}
   main{padding:16px 12px 70px}
   .topbar{padding:0 12px}
   .tabs{margin-left:0;width:100%;overflow-x:auto}
-  .sheetpick{border-left:0;padding:0 0 10px;margin:0;max-width:100%}
+  .jobbar{border-left:0;padding:0 0 10px;margin:0;max-width:100%;width:100%}
+  .libbar{margin-left:0;padding:0 0 12px;width:100%}
+  .libbar .btn{max-width:100%}
   .sheethead__title{font-size:23px}
   .topbar__tools{padding-bottom:12px}
   .runcard{grid-template-columns:40px minmax(0,1fr)}
@@ -546,7 +563,7 @@ details.fold > summary:hover{color:var(--ink)}
     <span class="brand__mark" aria-hidden="true">▤</span>
     <span>
       <span class="brand__name">Runsheet</span><br>
-      <span class="brand__sub">batch planner &amp; work tracker</span>
+      <span class="brand__sub" id="brand-sub">batch planner &amp; work tracker</span>
     </span>
   </div>
   <nav class="tabs" id="tabs" role="tablist" aria-label="Stages">
@@ -554,16 +571,18 @@ details.fold > summary:hover{color:var(--ink)}
     <button class="tab" role="tab" data-tab="route" aria-selected="false"><span class="tab__n">02</span>Route</button>
     <button class="tab" role="tab" data-tab="run" aria-selected="false"><span class="tab__n">03</span>Run</button>
   </nav>
-  <button class="sheetpick" id="btn-sheets" title="All runsheets">
-    <span class="sheetpick__label">Sheet</span>
-    <span class="sheetpick__name" id="topbar-title">Untitled runsheet</span>
-    <span class="sheetpick__caret" aria-hidden="true">▾</span>
-  </button>
-  <div class="topbar__tools">
+  <div class="jobbar" id="jobbar">
+    <button class="btn btn--ghost btn--sm" id="btn-sheets"><span aria-hidden="true">▤</span> Library</button>
+    <span class="crumb" id="topbar-title">Untitled runsheet</span>
+  </div>
+  <div class="topbar__tools" id="tools">
     <button class="btn btn--ghost btn--sm" id="btn-export">Save file</button>
     <button class="btn btn--ghost btn--sm" id="btn-import">Open file</button>
-    <input type="file" id="file-input" accept="application/json" class="sr">
   </div>
+  <div class="libbar" id="libbar">
+    <button class="btn btn--sm" id="btn-back"><span aria-hidden="true">↩</span> Back to <span id="back-title"></span></button>
+  </div>
+  <input type="file" id="file-input" accept="application/json" class="sr">
 </header>
 
 <main>
@@ -665,7 +684,7 @@ const state = {
   items: [], works: [], steps: [],
   routes: {}, progress: {}, ledger: [],
   priority: [],
-  tab: 'define',
+  tab: 'define', stage: 'define',
   focus: null, workFilter: '', picked: {}, edit: null, confirm: null
 };
 
@@ -1687,11 +1706,13 @@ function renderSheets() {
       '<div class="sheetcard__bar"><i style="width:' + st.pct + '%"></i></div>' +
       '<div class="sheetcard__meta">' + st.done + ' / ' + st.ops + ' operations done · edited ' + ago(s.updated) + '</div>' +
       '<div class="sheetcard__acts">' +
-        (open ? '<span class="openflag">Open now</span>'
+        (open ? '<button class="btn btn--sm btn--solid" data-continue>Continue</button>'
               : '<button class="btn btn--sm btn--solid" data-open-sheet="' + s.id + '">Open</button>') +
-        '<button class="btn btn--sm btn--ghost" data-dupe-sheet="' + s.id + '">Duplicate</button>' +
-        '<button class="btn btn--sm btn--ghost" data-save-sheet="' + s.id + '">Save file</button>' +
-        '<button class="btn btn--sm btn--ghost" data-del-sheet="' + s.id + '">Delete</button>' +
+        '<span class="linkrow">' +
+          '<button class="linkbtn" data-dupe-sheet="' + s.id + '">Duplicate</button>' +
+          '<button class="linkbtn" data-save-sheet="' + s.id + '">Save file</button>' +
+          '<button class="linkbtn linkbtn--del" data-del-sheet="' + s.id + '">Delete</button>' +
+        '</span>' +
       '</div>' +
     '</div>';
   }).join('') + '</div>';
@@ -1713,8 +1734,14 @@ function render() {
   $('#btn-export').disabled = !open;
   $$('.view').forEach(v => v.classList.toggle('is-active', v.id === 'view-' + state.tab));
   $('#btn-sheets').setAttribute('aria-current', String(state.tab === 'sheets'));
-  $('#topbar-title').textContent = open ? (state.title || 'Untitled runsheet') : 'Nothing open';
-  $('#btn-sheets').classList.toggle('sheetpick--none', !open);
+  const inLib = state.tab === 'sheets';
+  const name = open ? (state.title || 'Untitled runsheet') : '';
+  document.body.classList.toggle('mode-library', inLib);
+  $('#brand-sub').textContent = inLib ? 'library' : 'batch planner & work tracker';
+  $('#topbar-title').textContent = open ? name : 'Nothing open';
+  $('#topbar-title').classList.toggle('crumb--none', !open);
+  $('#back-title').textContent = name;
+  $('#btn-back').style.display = open ? '' : 'none';
   if (state.tab === 'define') {
     $('#sheet-title').value = state.title;
     $('#sheet-desc').value = state.description;
@@ -1724,7 +1751,10 @@ function render() {
   if (state.tab === 'run')    renderRun();
   if (state.tab === 'sheets') renderSheets();
 }
-function go(tab) { if (tab !== 'sheets' && !currentSheet()) tab = 'sheets'; state.tab = tab; state.confirm = null; state.edit = null; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+function go(tab) {
+  if (tab !== 'sheets' && !currentSheet()) tab = 'sheets';
+  if (tab !== 'sheets') state.stage = tab;
+  state.tab = tab; state.confirm = null; state.edit = null; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 
 /* ============================================================
    Events
@@ -2102,15 +2132,20 @@ function sampleData() {
   };
 }
 
-render();
-
-$('#btn-sheets').addEventListener('click', () => { state.tab = 'sheets'; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+$('#btn-sheets').addEventListener('click', () => go('sheets'));
+$('#btn-back').addEventListener('click', () => go(state.stage));
 
 $('#view-define').addEventListener('input', e => {
   if (e.target.id === 'sheet-title') {
     state.title = e.target.value;
-    $('#topbar-title').textContent = open ? (state.title || 'Untitled runsheet') : 'Nothing open';
-  $('#btn-sheets').classList.toggle('sheetpick--none', !open);
+    const inLib = state.tab === 'sheets';
+  const name = open ? (state.title || 'Untitled runsheet') : '';
+  document.body.classList.toggle('mode-library', inLib);
+  $('#brand-sub').textContent = inLib ? 'library' : 'batch planner & work tracker';
+  $('#topbar-title').textContent = open ? name : 'Nothing open';
+  $('#topbar-title').classList.toggle('crumb--none', !open);
+  $('#back-title').textContent = name;
+  $('#btn-back').style.display = open ? '' : 'none';
     persist();
   }
   if (e.target.id === 'sheet-desc') { state.description = e.target.value; persist(); }
@@ -2118,6 +2153,7 @@ $('#view-define').addEventListener('input', e => {
 
 $('#view-sheets').addEventListener('click', e => {
   const t = e.target;
+  if (t.closest('[data-continue]')) return go(state.stage);
   if (t.closest('[data-new-sheet]')) {
     newSheet('', '', emptyData());
     const el = $('#sheet-title');
