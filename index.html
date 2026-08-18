@@ -465,6 +465,7 @@ td.mx__cell{width:62px;background:var(--white)}
 }
 .tag__box{width:13px;height:13px;border:1.5px solid var(--rule-2);border-radius:1px;flex:none;display:grid;place-items:center;font-size:10px;color:transparent}
 .tag__wait{font-weight:400;font-size:10px;color:var(--ink-3);letter-spacing:.02em}
+.tag__next{font-weight:700;font-size:10px;letter-spacing:.02em;opacity:.72}
 .tag[data-s="ready"]{border-color:var(--ink)}
 .tag[data-s="ready"]:hover{background:var(--go-tint);border-color:var(--go);transform:translateY(-1px)}
 .tag[data-s="ready"]:hover .tag__box{border-color:var(--go);color:var(--go)}
@@ -877,6 +878,10 @@ const COPY = {
     markDone: 'Mark {n} done',
     markDoneAside: 'or tick items one at a time',
     tagAfter: 'after {name}',
+    /* shown on an item you have just ticked off, when its route continues —
+       tells whoever is holding the part where to send it. The arrow is part
+       of the line and can be changed or dropped. */
+    tagNext: '→ {name}',
     untickTip: 'Put this back',
     batchDone: '{name} batch marked done',
     putBack: '{n} operations put back on {name}',
@@ -1733,6 +1738,11 @@ function renderRun() {
       const it = item(o.itemId);
       if (!it) return '';
       const waitOn = (done || ready || oneWait) ? '' : workName(routeOf(o.itemId)[prog(o.itemId)]);
+      /* where this part goes after the operation just ticked off — only while
+         it is still sitting at this bench, and only if the route continues */
+      const nx = o.idx + 1;
+      const sendTo = (done && nx < routeOf(o.itemId).length && nx >= prog(o.itemId))
+        ? workName(routeOf(o.itemId)[nx]) : '';
       const urgent = state.priority.some(sid => stepItemSet(sid).has(o.itemId));
       const attrs = done
         ? ' data-untick="' + o.itemId + '" data-idx="' + o.idx + '" title="' + esc(C.untickTip) + '"'
@@ -1741,6 +1751,7 @@ function renderRun() {
         (done ? 'done' : (ready ? 'ready' : 'wait')) + '"' + attrs + '>' +
         (done || ready ? '<span class="tag__box">✓</span>' : '') + esc(it.code) +
         (waitOn ? '<span class="tag__wait">' + esc(t(C.tagAfter, { name: waitOn })) + '</span>' : '') +
+        (sendTo ? '<span class="tag__next">' + esc(t(C.tagNext, { name: sendTo })) + '</span>' : '') +
         '</button>';
     };
 
