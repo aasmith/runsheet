@@ -160,6 +160,16 @@ input,select,textarea{font-family:inherit;font-size:14px;color:var(--ink)}
   font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
   color:var(--go);border:1.5px solid var(--go);border-radius:2px;padding:4px 7px;
 }
+.sheetpick--none .sheetpick__name{color:var(--ink-3);font-weight:500;font-style:italic}
+.tab:disabled{opacity:.35;cursor:not-allowed}
+.tab:disabled:hover{color:var(--ink-3)}
+.firstrun{
+  border:1.5px dashed var(--rule-2);border-radius:3px;background:var(--panel);
+  padding:34px 28px;text-align:center;max-width:640px;
+}
+.firstrun__lead{font-size:19px;font-weight:700;letter-spacing:-.015em;margin:0 0 7px}
+.firstrun__sub{font-size:13.5px;color:var(--ink-2);margin:0 auto 20px;max-width:52ch;line-height:1.5}
+.firstrun__acts{display:flex;gap:7px;justify-content:center;flex-wrap:wrap}
 .storenote{
   display:flex;gap:8px;align-items:flex-start;background:var(--hold-tint);border:1px solid var(--hold);
   border-radius:2px;padding:9px 11px;font-size:12.5px;color:#5E3A02;margin-bottom:14px;max-width:70ch;
@@ -1579,17 +1589,17 @@ function deleteSheet(id) {
   if (wasOpen) {
     lastSaved = null;
     if (store.sheets.length) {
-      const next = store.sheets.slice().sort((a, b) => b.updated - a.updated)[0];
+      const next = store.sheets.slice().sort((a, b) => (b.updated || 0) - (a.updated || 0))[0];
       store.active = next.id;
       state.title = next.title || ''; state.description = next.description || '';
       applyData(next.data);
+      persist();
     } else {
-      const s = makeSheet('', '', emptyData());
-      store.active = s.id;
+      store.active = null;
       state.title = ''; state.description = '';
-      applyData(s.data);
+      applyData(emptyData());
+      state.tab = 'sheets';
     }
-    persist();
   }
   writeStore();
   render();
@@ -1623,19 +1633,33 @@ function renderSheets() {
   const cur = currentSheet();
   if (cur) { cur.title = state.title; cur.description = state.description; cur.data = sheetData(); }
 
+  const bare = !store.sheets.length;
   let h = '<div class="viewhead"><div class="eyebrow">Library</div>' +
-    '<h1>Every runsheet you have on this browser.</h1>' +
-    '<p>They stay on this machine — nothing is uploaded. Save one to a file if you need it somewhere else.</p></div>';
+    '<h1>' + (bare ? 'Nothing saved here yet.' : 'Every runsheet you have on this browser.') + '</h1>' +
+    '<p>Runsheets stay on this machine — nothing is uploaded. Save one to a file if you need it somewhere else.</p></div>';
 
   if (!canStore) {
     h += '<div class="storenote"><span>⚠</span><span>This browser is blocking local storage, so sheets last only until you close the tab. ' +
       'Use <b>Save file</b> to keep your work.</span></div>';
   }
 
-  h += '<div class="toolbar">' +
+  const starters =
     '<button class="btn btn--solid" data-new-sheet>New runsheet</button>' +
     '<button class="btn btn--ghost" data-new-sample>Start from the sample job</button>' +
-    '<button class="btn btn--ghost" id="btn-import-2">Open a file</button>' +
+    '<button class="btn btn--ghost" id="btn-import-2">Open a file</button>';
+
+  if (bare) {
+    h += '<div class="firstrun">' +
+      '<p class="firstrun__lead">A runsheet is one job.</p>' +
+      '<p class="firstrun__sub">The items it needs, the work each one takes, and the assemblies they feed — ' +
+      'batched into as few setups as the job allows. Start an empty one, or open the worked example and take it apart.</p>' +
+      '<div class="firstrun__acts">' + starters + '</div>' +
+    '</div>';
+    host.innerHTML = h;
+    return;
+  }
+
+  h += '<div class="toolbar">' + starters +
     '<span class="row__spacer"></span>' +
     '<span class="eyebrow">' + store.sheets.length + ' saved</span>' +
     '</div>';
@@ -1680,10 +1704,17 @@ function renderSheets() {
    ============================================================ */
 function render() {
   persist();
-  $$('.tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.tab === state.tab)));
+  const open = !!currentSheet();
+  if (!open) state.tab = 'sheets';
+  $$('.tab').forEach(t => {
+    t.setAttribute('aria-selected', String(t.dataset.tab === state.tab));
+    t.disabled = !open;
+  });
+  $('#btn-export').disabled = !open;
   $$('.view').forEach(v => v.classList.toggle('is-active', v.id === 'view-' + state.tab));
   $('#btn-sheets').setAttribute('aria-current', String(state.tab === 'sheets'));
-  $('#topbar-title').textContent = state.title || 'Untitled runsheet';
+  $('#topbar-title').textContent = open ? (state.title || 'Untitled runsheet') : 'Nothing open';
+  $('#btn-sheets').classList.toggle('sheetpick--none', !open);
   if (state.tab === 'define') {
     $('#sheet-title').value = state.title;
     $('#sheet-desc').value = state.description;
@@ -1693,7 +1724,7 @@ function render() {
   if (state.tab === 'run')    renderRun();
   if (state.tab === 'sheets') renderSheets();
 }
-function go(tab) { state.tab = tab; state.confirm = null; state.edit = null; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+function go(tab) { if (tab !== 'sheets' && !currentSheet()) tab = 'sheets'; state.tab = tab; state.confirm = null; state.edit = null; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 
 /* ============================================================
    Events
@@ -2078,7 +2109,8 @@ $('#btn-sheets').addEventListener('click', () => { state.tab = 'sheets'; render(
 $('#view-define').addEventListener('input', e => {
   if (e.target.id === 'sheet-title') {
     state.title = e.target.value;
-    $('#topbar-title').textContent = state.title || 'Untitled runsheet';
+    $('#topbar-title').textContent = open ? (state.title || 'Untitled runsheet') : 'Nothing open';
+  $('#btn-sheets').classList.toggle('sheetpick--none', !open);
     persist();
   }
   if (e.target.id === 'sheet-desc') { state.description = e.target.value; persist(); }
@@ -2086,7 +2118,12 @@ $('#view-define').addEventListener('input', e => {
 
 $('#view-sheets').addEventListener('click', e => {
   const t = e.target;
-  if (t.closest('[data-new-sheet]')) return newSheet('', '', emptyData());
+  if (t.closest('[data-new-sheet]')) {
+    newSheet('', '', emptyData());
+    const el = $('#sheet-title');
+    if (el) el.focus();
+    return;
+  }
   if (t.closest('[data-new-sample]')) return newSheet('Sample job — steel cabinet', 'A worked example: 11 parts, six work types, four assemblies.', sampleData());
   if (t.id === 'btn-import-2') return $('#file-input').click();
   if (t.closest('[data-keep-sheet]')) { state.confirm = null; return renderSheets(); }
@@ -2105,20 +2142,21 @@ $('#view-sheets').addEventListener('click', e => {
   if (de) { state.confirm = { kind: 'sheet', id: de.dataset.delSheet }; return renderSheets(); }
 });
 
-/* boot: reopen whatever was last in front of you */
+/* boot: reopen whatever was last in front of you, or show an empty library */
 loadStore();
-if (!store.sheets.length) {
-  const s = makeSheet('', '', emptyData());
-  store.active = s.id;
+pruneBlank(store.active);
+if (!currentSheet()) {
+  store.active = store.sheets.length
+    ? store.sheets.slice().sort((a, b) => (b.updated || 0) - (a.updated || 0))[0].id
+    : null;
 }
-if (!currentSheet()) store.active = store.sheets.slice().sort((a, b) => (b.updated || 0) - (a.updated || 0))[0].id;
 (function boot() {
   const s = currentSheet();
-  state.title = s.title || '';
-  state.description = s.description || '';
-  applyData(s.data);
+  state.title = s ? (s.title || '') : '';
+  state.description = s ? (s.description || '') : '';
+  applyData(s ? s.data : emptyData());
   lastSaved = null;
-  if (!(state.items.length || state.works.length)) state.tab = 'sheets';
+  if (!s || !(state.items.length || state.works.length)) state.tab = 'sheets';
 })();
 render();
 
