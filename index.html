@@ -1485,6 +1485,10 @@ function computePlan() {
 /* op is actionable right now if it sits exactly at the item's frontier */
 const opReady = o => prog(o.itemId) === o.idx;
 
+/* Item codes are read as a person writes them — PNL-2 before PNL-10, not after.
+   Built once: constructing a collator is far dearer than using one. */
+const codeOrder = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+
 function batchState(b) {
   const ready = b.ops.filter(opReady).length;
   if (ready === b.ops.length) return 'ready';
@@ -2106,6 +2110,19 @@ function renderRun() {
 
   cleanLedger();
   const plan = livePlan();
+  /* item() is a linear scan; the layout of every block reads codes repeatedly */
+  const codeOf = {};
+  state.items.forEach(i => { codeOf[i.id] = i.code || ''; });
+  /* How a work block is laid out, and it depends on nothing that ticking
+     changes: an item holds its place in the block as it is marked off, so what
+     is under the pointer stays under the pointer. */
+  const byCode = (a, x) =>
+    codeOrder.compare(codeOf[a.itemId] || '', codeOf[x.itemId] || '') ||
+    a.idx - x.idx ||
+    /* nothing stops two items sharing a code. Falling through to the ids keeps
+       the order settled by data a tick cannot change — without this, the pair
+       would swap over as one of them was marked off. */
+    (a.itemId < x.itemId ? -1 : a.itemId > x.itemId ? 1 : 0);
   const total = totalOps(), done = doneOps();
   const pct = total ? Math.round(done / total * 100) : 0;
   const remaining = total - done;
@@ -2231,8 +2248,12 @@ function renderRun() {
     const oneWait = st === 'blocked' && waits.length === 1;
     /* The meta line stays short: a phrase per fact, with the detail behind a
        tooltip on the ones that have a list to show. */
-    const all = batch.done.concat(batch.ops);
-    const codes = ops => ops.map(o => (item(o.itemId) || {}).code).filter(Boolean).join(', ');
+    /* One list, laid out in code order — ticked and unticked alike, so nothing
+       reorders itself as it is marked off. Which of them are done is looked up
+       rather than read off their position. */
+    const all = batch.done.concat(batch.ops).sort(byCode);
+    const isDone = new Set(batch.done.map(o => o.itemId + '#' + o.idx));
+    const codes = ops => ops.map(o => codeOf[o.itemId]).filter(Boolean).join(', ');
     const finishers = all.filter(o => o.idx === routeOf(o.itemId).length - 1);
     const urgents = all.filter(o => urgentNow.has(o.itemId));
     const count = batch.done.length + batch.ops.length;
@@ -2302,8 +2323,7 @@ function renderRun() {
         '<span class="stamp" data-s="' + st + '">' + esc(STAMP()[st]) + '</span>' +
         '</div>' +
         '<div class="tags">' +
-          batch.done.map(o => tag(o, true)).join('') +
-          batch.ops.map(o => tag(o, false)).join('') +
+          all.map(o => tag(o, isDone.has(o.itemId + '#' + o.idx))).join('') +
         '</div>' +
         (rdy ? '<div class="runcard__foot">' +
           '<button class="btn btn--sm" data-finish-batch="' + batch.planIndex + '">' +
