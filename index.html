@@ -1495,6 +1495,10 @@ function batchState(b) {
   if (ready > 0) return 'partial';
   return 'blocked';
 }
+/* a card with nothing outstanding is a setup that has been run */
+const cardState = c => c.ops.length ? batchState(c) : 'done';
+/* the order the run page groups its cards in: what you can do with them */
+const CARD_RANK = { done: 0, ready: 1, partial: 2, blocked: 3 };
 
 const STAMP = () => ({
   ready: COPY.run.stampReady, partial: COPY.run.stampPartial,
@@ -2252,13 +2256,24 @@ function renderRun() {
     live[0].done = past.pop().done.concat(live[0].done);
   }
 
-  const cards = past.concat(live);
+  /* The number on a card is its place in the planned sequence — what the steps
+     rail counts in, and what says which setup runs when. It is fixed to the
+     plan, not to where the card happens to be shown. */
+  const ordered = past.concat(live);
+  ordered.forEach((c, i) => { c.no = i + 1; c.seq = i; });
+
+  /* Cards are grouped by what can be done with them: run, startable,
+     part-startable, then blocked. Plan order breaks ties inside each group, so
+     the recommended sequence still reads down the page. */
+  const cards = ordered.slice().sort((a, x) =>
+    CARD_RANK[cardState(a)] - CARD_RANK[cardState(x)] || a.seq - x.seq);
+
   /* where each pinned batch ended up, so the steps rail can name its card
      without assuming the plan and the card list line up index for index */
   const cardNo = new Map();
-  cards.forEach((c, i) => { if (c.pin !== undefined) cardNo.set(c.pin, i + 1); });
+  cards.forEach(c => { if (c.pin !== undefined) cardNo.set(c.pin, c.no); });
   const dispNum = f => String(
-    (f >= 1 && b[f - 1] ? cardNo.get(b[f - 1].from) : 0) || cards.length).padStart(2, '0');
+    (f >= 1 && b[f - 1] ? cardNo.get(b[f - 1].from) : 0) || ordered.length).padStart(2, '0');
 
   /* Sticky, so it is still to hand when the ticking has moved well down a long
      list of cards — and it stays put until it is acted on. */
@@ -2279,8 +2294,8 @@ function renderRun() {
       '<strong>' + esc(C.allDoneTitle) + '</strong>' + esc(C.allDoneBody) + '</div>';
   }
 
-  cards.forEach((batch, i) => {
-    const st = batch.ops.length ? batchState(batch) : 'done';
+  cards.forEach(batch => {
+    const st = cardState(batch);
     const rdy = batch.ops.filter(opReady).length;
     const waits = [];
     batch.ops.forEach(o => {
@@ -2355,7 +2370,7 @@ function renderRun() {
 
     h += '<div class="runcard" data-s="' + st + '">' +
       '<div class="runcard__gutter">' +
-        '<div class="runcard__no">' + String(i + 1).padStart(2, '0') + '</div>' +
+        '<div class="runcard__no">' + String(batch.no).padStart(2, '0') + '</div>' +
         '<div class="runcard__punch"></div><div class="runcard__punch"></div>' +
       '</div>' +
       '<div class="runcard__main">' +
