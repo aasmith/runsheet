@@ -494,11 +494,18 @@ td.mx__cell{width:62px;background:var(--white)}
 .tag:hover .tag__jump{opacity:1}
 .tag__jump:hover,.tag__jump:focus-visible{background:var(--blue);color:var(--white);opacity:1}
 .tag__box{width:13px;height:13px;border:1.5px solid var(--rule-2);border-radius:1px;flex:none;display:grid;place-items:center;font-size:10px;color:transparent}
+/* the item's description beside its code. Opacity rather than a colour of its
+   own, so it follows the tag through every state — done, finished, hovered. */
+.tag__desc{
+  font-family:var(--display);font-weight:500;font-size:11.5px;opacity:.72;
+  max-width:24ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
 .tag__wait{font-weight:400;font-size:10px;color:var(--ink-3);letter-spacing:.02em}
 .tag--finished{background:var(--gold-fill);border-color:var(--gold);color:#4A3705}
 .tag--finished .tag__medal{font-size:11px;line-height:1;flex:none}
 /* an item that has come off the floor is ruled off, rather than labelled */
-.tag--finished .tag__code{text-decoration:line-through;text-decoration-thickness:1.5px}
+.tag--finished .tag__code,
+.tag--finished .tag__desc{text-decoration:line-through;text-decoration-thickness:1.5px}
 .tag--finished:has(.tag__main:hover){background:var(--stop-tint);border-color:var(--stop);color:var(--stop)}
 .metahint{cursor:help;border-bottom:1px dotted var(--rule-2)}
 .metahint:hover{border-bottom-color:var(--ink-2);color:var(--ink)}
@@ -2492,6 +2499,7 @@ function renderRun() {
           /* a finished item is struck through rather than labelled, so its own
              span to draw the line over */
           '<span class="tag__code">' + esc(it.code) + '</span>' +
+          (it.name ? '<span class="tag__desc">' + esc(it.name) + '</span>' : '') +
           (waitOn ? '<span class="tag__wait">' + esc(t(C.tagAfter, { name: waitOn })) + '</span>' : '') +
         '</button>' +
         '<button class="tag__jump" data-route-item="' + o.itemId +
