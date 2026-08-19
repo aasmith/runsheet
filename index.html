@@ -1880,6 +1880,9 @@ function confirmBar(kind, id, wide) {
 const STEP_CHIPS = 12;
 
 function renderDefine() {
+  /* likewise: an inline rename commits and redraws through here alone, so
+     without this a renamed item was lost on closing the tab */
+  persist();
   const C = COPY.define;
   $('#count-items').textContent = state.items.length;
   $('#count-works').textContent = state.works.length;
@@ -2034,6 +2037,12 @@ const editActions = () =>
    02 — Route
    ============================================================ */
 function renderRoute() {
+  /* This page's handlers call renderRoute directly rather than render(), to
+     redraw the two panels without disturbing the rest of the page — which meant
+     they skipped render()'s persist, and a route edit was only written out when
+     something else happened to trigger a full render, such as changing page.
+     Every render is a save point, whichever way it was reached. */
+  persist();
   const C = COPY.route;
   const host = $('#route-body');
   if (!state.items.length || !state.works.length) {
