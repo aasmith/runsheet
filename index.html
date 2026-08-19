@@ -559,6 +559,19 @@ td.mx__cell{width:62px;background:var(--white)}
   width:8px;height:8px;background:var(--ink);transform:rotate(45deg);
 }
 .tip--below::after{bottom:auto;top:-4px}
+/* the rich variant: an item's route wants a panel, not a dark chip. Laid out
+   stacked, as the strip is on a narrow screen, and left to wrap. */
+.tip--card{
+  max-width:min(440px,calc(100vw - 24px));
+  background:var(--panel);color:var(--ink);
+  border:1.5px solid var(--ink);border-radius:3px;
+  padding:9px 11px;box-shadow:5px 5px 0 rgba(20,24,27,.18);
+}
+.tip--card::after{display:none}
+.tip--card .strip{grid-template-columns:1fr;gap:6px;padding:0;border-bottom:0}
+.tip--card .strip__id{flex-direction:row;align-items:baseline;gap:7px;flex-wrap:wrap}
+.tip--card .mx__nm{white-space:normal;overflow:visible}
+.tip--card .ostep{cursor:default}
 .tag[data-s="ready"]{border-color:var(--ink)}
 .tag[data-s="ready"]:has(.tag__main:hover){background:var(--go-tint);border-color:var(--go);transform:translateY(-1px)}
 .tag[data-s="ready"]:has(.tag__main:hover) .tag__box{border-color:var(--go);color:var(--go)}
@@ -1497,6 +1510,35 @@ function batchState(b) {
 }
 /* a card with nothing outstanding is a setup that has been run */
 const cardState = c => c.ops.length ? batchState(c) : 'done';
+
+/* One item's route as a strip: what is done, what is next, what is waiting.
+   The item-by-item fold draws these to be worked — the steps can be ticked off
+   from there. The hover tooltip on a work block draws the same thing to be
+   read, so the two cannot drift apart. */
+function stripHTML(it, live) {
+  const C = COPY.run;
+  const r = routeOf(it.id), p = prog(it.id);
+  const head = live
+    ? '<button class="strip__code" data-route-item="' + it.id + '" title="' +
+        esc(t(C.editRoute, { name: it.code })) + '">' + esc(it.code) +
+        '<span class="strip__go" aria-hidden="true">↗</span></button>'
+    : '<span class="strip__code">' + esc(it.code) + '</span>';
+  const ops = r.length
+    ? r.map((w, i) => {
+        const s = i < p ? 'done' : (i === p ? 'now' : 'wait');
+        const body = '<span class="n">' + String(i + 1).padStart(2, '0') + '</span>' +
+          esc(workName(w)) + (s === 'done' ? ' ✓' : '');
+        return live
+          ? '<button class="ostep" data-s="' + s + '"' +
+              (s === 'wait' ? ' disabled' : ' data-track="' + it.id + '" data-idx="' + i + '"') +
+              '>' + body + '</button>'
+          : '<span class="ostep" data-s="' + s + '">' + body + '</span>';
+      }).join('')
+    : '<span class="hint" style="margin:0">' + esc(C.stripNoRoute) + '</span>';
+  return '<div class="strip"><div class="strip__id">' + head +
+      '<span class="mx__nm">' + esc(it.name) + '</span>' +
+    '</div><div class="strip__ops">' + ops + '</div></div>';
+}
 /* the order the run page groups its cards in: what you can do with them */
 const CARD_RANK = { done: 0, ready: 1, partial: 2, blocked: 3 };
 
@@ -1632,24 +1674,75 @@ function cleanLedger() {
   });
   state.ledger = state.ledger.filter(e => e.ops.length);
 }
-/* ---- tooltips: anything with data-tip gets one on hover, or on tap ---- */
-function showTip(target) {
-  const text = target.getAttribute('data-tip');
+/* ---- tooltips ----------------------------------------------------------
+   Two kinds, one element. data-tip is a line of text, shown as soon as the
+   pointer arrives. data-strip is an item's whole route, drawn as the panel the
+   item-by-item fold uses, and it waits for the pointer to settle first.
+   ---------------------------------------------------------------------- */
+function placeTip(target) {
   const el = $('#tip');
-  if (!text || !el) return;
-  el.textContent = text;
-  el.classList.add('is-on');
   const r = target.getBoundingClientRect();
   const w = el.offsetWidth, h = el.offsetHeight;
   let left = r.left + r.width / 2 - w / 2;
   left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
   let top = r.top - h - 9;
-  el.classList.toggle('tip--below', top < 8);
-  if (top < 8) top = r.bottom + 9;
+  const below = top < 8;
+  el.classList.toggle('tip--below', below);
+  /* a route strip is tall enough to run off the bottom as well as the top */
+  if (below) top = Math.min(r.bottom + 9, window.innerHeight - h - 8);
   el.style.left = Math.round(left) + 'px';
-  el.style.top = Math.round(top) + 'px';
+  el.style.top = Math.round(Math.max(8, top)) + 'px';
+}
+function showTip(target) {
+  const text = target.getAttribute('data-tip');
+  const el = $('#tip');
+  if (!text || !el) return;
+  el.classList.remove('tip--card');
+  el.textContent = text;
+  el.classList.add('is-on');
+  placeTip(target);
+}
+function showStripTip(target) {
+  const it = item(target.getAttribute('data-strip'));
+  const el = $('#tip');
+  if (!it || !el) return;
+  el.classList.add('tip--card');
+  el.innerHTML = stripHTML(it, false);
+  el.classList.add('is-on');
+  placeTip(target);
+  stripWarm = true;
+}
+
+/* A route strip is a lot to have appear by accident while the pointer crosses a
+   block of thirty items, so it waits. Once one is up, moving along the row
+   brings up the next almost at once — the pause is there to catch a pointer
+   passing through, not to slow down reading. Leaving the block for a moment
+   keeps that quickness; leaving it properly puts the pause back. */
+const STRIP_WAIT = 1500;    /* settle on an item this long to call it up */
+const STRIP_NEXT = 90;     /* ...but only this long while already reading one */
+const STRIP_COOL = 1400;    /* how long the quickness outlives the last one */
+let stripTimer = null, stripCool = null, stripWarm = false, stripAt = null;
+
+function armStrip(target) {
+  if (stripAt === target) return;   /* already counting down on it, or already up */
+  clearTimeout(stripTimer);
+  stripAt = target;
+  stripTimer = setTimeout(() => {
+    stripTimer = null;
+    showStripTip(target);
+  }, stripWarm ? STRIP_NEXT : STRIP_WAIT);
+}
+function disarmStrip() {
+  clearTimeout(stripTimer);
+  stripTimer = null;
+  stripAt = null;
+}
+function coolStrip() {
+  clearTimeout(stripCool);
+  stripCool = setTimeout(() => { stripWarm = false; }, STRIP_COOL);
 }
 function hideTip() {
+  disarmStrip();
   const el = $('#tip');
   if (el) el.classList.remove('is-on');
 }
@@ -1659,13 +1752,19 @@ let tipByTouch = false;
 document.addEventListener('pointerdown', e => { tipByTouch = e.pointerType === 'touch'; }, true);
 document.addEventListener('mouseover', e => {
   if (tipByTouch) return;
-  const h = e.target.closest && e.target.closest('[data-tip]');
-  if (h) showTip(h);
+  const h = e.target.closest && e.target.closest('[data-tip],[data-strip]');
+  if (!h) return;
+  if (h.hasAttribute('data-tip')) { disarmStrip(); showTip(h); }
+  else armStrip(h);
 });
 document.addEventListener('mouseout', e => {
   if (tipByTouch) return;
-  const h = e.target.closest && e.target.closest('[data-tip]');
-  if (h) hideTip();
+  const h = e.target.closest && e.target.closest('[data-tip],[data-strip]');
+  if (!h) return;
+  /* moving between the two buttons inside one tag is not leaving the tag */
+  if (e.relatedTarget && h.contains(e.relatedTarget)) return;
+  if (h.hasAttribute('data-strip')) coolStrip();
+  hideTip();
 });
 document.addEventListener('click', e => {
   const h = e.target.closest && e.target.closest('[data-tip]');
@@ -2349,12 +2448,15 @@ function renderRun() {
       /* nothing left on this item's route — it leaves the work area */
       const finished = done && nx >= routeOf(o.itemId).length;
       const urgent = urgentNow.has(o.itemId);
+      /* aria-label rather than title: the whole tag carries a hover tooltip of
+         its own, and a native one on top of it would be two at once */
       const attrs = done
-        ? ' data-untick="' + o.itemId + '" data-idx="' + o.idx + '" title="' + esc(C.untickTip) + '"'
+        ? ' data-untick="' + o.itemId + '" data-idx="' + o.idx + '" aria-label="' + esc(C.untickTip) + '"'
         : (ready ? ' data-tick="' + o.itemId + '" data-idx="' + o.idx + '"' : ' disabled');
       const goRoute = esc(t(C.editRoute, { name: it.code }));
       return '<span class="tag' + (urgent ? ' tag--prio' : '') + (finished ? ' tag--finished' : '') +
-        '" data-s="' + (done ? 'done' : (ready ? 'ready' : 'wait')) + '">' +
+        '" data-s="' + (done ? 'done' : (ready ? 'ready' : 'wait')) +
+        '" data-strip="' + o.itemId + '">' +
         '<button class="tag__main"' + attrs + '>' +
           (finished
             ? (C.tagFinishedMark ? '<span class="tag__medal">' + esc(C.tagFinishedMark) + '</span>' : '')
@@ -2363,7 +2465,7 @@ function renderRun() {
           (sendTo ? '<span class="tag__next">' + esc(t(C.tagNext, { name: sendTo })) + '</span>' : '') +
           (finished ? '<span class="tag__next">' + esc(C.tagFinished) + '</span>' : '') +
         '</button>' +
-        '<button class="tag__jump" data-route-item="' + o.itemId + '" title="' + goRoute +
+        '<button class="tag__jump" data-route-item="' + o.itemId +
           '" aria-label="' + goRoute + '">↗</button>' +
       '</span>';
     };
@@ -2456,23 +2558,7 @@ function renderRun() {
       '<span style="color:var(--ink-3)">' + esc(C.legendHint) + '</span>' +
     '</div>' +
     '<div class="panel"><div class="panel__body">' +
-    state.items.map(it => {
-      const r = routeOf(it.id), p = prog(it.id);
-      return '<div class="strip"><div class="strip__id">' +
-          '<button class="strip__code" data-route-item="' + it.id + '" title="' +
-            esc(t(C.editRoute, { name: it.code })) + '">' + esc(it.code) +
-            '<span class="strip__go" aria-hidden="true">↗</span></button>' +
-          '<span class="mx__nm">' + esc(it.name) + '</span>' +
-        '</div><div class="strip__ops">' +
-        (r.length ? r.map((w, i) => {
-          const s = i < p ? 'done' : (i === p ? 'now' : 'wait');
-          return '<button class="ostep" data-s="' + s + '"' +
-            (s === 'wait' ? ' disabled' : ' data-track="' + it.id + '" data-idx="' + i + '"') + '>' +
-            '<span class="n">' + String(i + 1).padStart(2, '0') + '</span>' + esc(workName(w)) +
-            (s === 'done' ? ' ✓' : '') + '</button>';
-        }).join('') : '<span class="hint" style="margin:0">' + esc(C.stripNoRoute) + '</span>') +
-      '</div></div>';
-    }).join('') +
+    state.items.map(it => stripHTML(it, true)).join('') +
     '</div></div></details>';
 
   host.innerHTML = h;
