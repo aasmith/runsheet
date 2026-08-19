@@ -1547,10 +1547,13 @@ function foldPin(p) {
      every tick — so the liveness check goes through a set instead */
   const live = new Set(state.items.map(i => i.id));
   const batches = [];
-  p.batches.forEach(b => {
+  p.batches.forEach((b, k) => {
     const ops = b.ops.filter(o =>
       live.has(o.itemId) && o.idx >= prog(o.itemId) && routeOf(o.itemId)[o.idx] === b.workId);
-    if (ops.length) batches.push({ workId: b.workId, later: 0, urgent: b.urgent, ops: ops });
+    /* `from` is the batch's place in the pin, which is what the run page draws
+       its cards against — emptied batches drop out of here, so the two lists
+       cannot be indexed against each other directly */
+    if (ops.length) batches.push({ workId: b.workId, later: 0, urgent: b.urgent, ops: ops, from: k });
   });
   /* "more later" counts this work type still queued behind the setup in hand */
   batches.forEach((b, k) => {
@@ -2199,23 +2202,63 @@ function renderRun() {
     '<span class="hint" style="margin:0;max-width:52ch">' + esc(verdict) + '</span>' +
     '</div></div>';
 
-  /* Cards = setups already run (from the ledger) followed by planned ones.
-     If the setup in progress is the same work type as the next planned batch,
-     they are one card: ticked items stay put, the rest sit beside them. */
-  const cards = state.ledger.map(e => ({
-    workId: e.workId, done: e.ops.slice(), ops: [], later: 0, urgent: 0, planIndex: -1
+  /* A batch is one card, for as long as the plan it belongs to is pinned.
+
+     Ticking an operation off files it in the ledger by work type and nothing
+     else, and cards used to be drawn as "every ledger entry, then every planned
+     batch", merged only where the two met. So marking something off in a batch
+     that was not the next one up split that batch: the finished item hopped
+     into a card of its own further up, and the rest of the batch stayed put.
+     Ticking in two batches alternately could spread one setup over several
+     cards, since the ledger only ever merges with the entry before it.
+
+     So an operation is drawn against the batch that planned it. The card holds
+     its place, and the item holds its place in the card. Work ticked off before
+     this plan was pinned belongs to no batch in it and stays as history, in the
+     order the ledger recorded it. */
+  const home = new Map();
+  const pins = pinned ? pinned.batches : [];
+  pins.forEach((batch, k) => batch.ops.forEach(o => home.set(o.itemId + '#' + o.idx, k)));
+
+  const planCards = pins.map((batch, k) => ({
+    pin: k, workId: batch.workId, done: [], ops: [], later: 0, urgent: 0, planIndex: -1
   }));
-  const ledgerCount = cards.length;
-  let merged = false;
-  if (ledgerCount && b.length && cards[ledgerCount - 1].workId === b[0].workId) {
-    Object.assign(cards[ledgerCount - 1], { ops: b[0].ops, later: b[0].later, urgent: b[0].urgent, planIndex: 0 });
-    merged = true;
+  /* the outstanding side of each batch, carrying its place in the folded plan
+     so "mark done" acts on the batch the card was drawn from */
+  b.forEach((batch, i) => {
+    const card = planCards[batch.from];
+    if (!card) return;
+    card.ops = batch.ops;
+    card.later = batch.later;
+    card.urgent = batch.urgent;
+    card.planIndex = i;
+  });
+
+  const past = [];
+  state.ledger.forEach(e => {
+    const older = [];
+    e.ops.forEach(o => {
+      const at = home.get(o.itemId + '#' + o.idx);
+      if (at === undefined) older.push(o);
+      else planCards[at].done.push(o);
+    });
+    if (older.length) past.push({ workId: e.workId, done: older, ops: [], later: 0, urgent: 0, planIndex: -1 });
+  });
+
+  const live = planCards.filter(c => c.done.length || c.ops.length);
+  /* A setup part-run before this plan was pinned, which the plan then picks up
+     as its first move, is still the one setup — so it stays the one card. */
+  if (past.length && live.length && past[past.length - 1].workId === live[0].workId) {
+    live[0].done = past.pop().done.concat(live[0].done);
   }
-  for (let i = merged ? 1 : 0; i < b.length; i++) {
-    cards.push({ workId: b[i].workId, done: [], ops: b[i].ops, later: b[i].later, urgent: b[i].urgent, planIndex: i });
-  }
-  const offset = ledgerCount - (merged ? 1 : 0);
-  const dispNum = f => String(offset + f).padStart(2, '0');
+
+  const cards = past.concat(live);
+  /* where each pinned batch ended up, so the steps rail can name its card
+     without assuming the plan and the card list line up index for index */
+  const cardNo = new Map();
+  cards.forEach((c, i) => { if (c.pin !== undefined) cardNo.set(c.pin, i + 1); });
+  const dispNum = f => String(
+    (f >= 1 && b[f - 1] ? cardNo.get(b[f - 1].from) : 0) || cards.length).padStart(2, '0');
 
   /* Sticky, so it is still to hand when the ticking has moved well down a long
      list of cards — and it stays put until it is acted on. */
