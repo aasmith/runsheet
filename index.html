@@ -495,12 +495,11 @@ td.mx__cell{width:62px;background:var(--white)}
 .tag__jump:hover,.tag__jump:focus-visible{background:var(--blue);color:var(--white);opacity:1}
 .tag__box{width:13px;height:13px;border:1.5px solid var(--rule-2);border-radius:1px;flex:none;display:grid;place-items:center;font-size:10px;color:transparent}
 .tag__wait{font-weight:400;font-size:10px;color:var(--ink-3);letter-spacing:.02em}
-.tag__next{font-weight:700;font-size:10px;letter-spacing:.02em;opacity:.72}
 .tag--finished{background:var(--gold-fill);border-color:var(--gold);color:#4A3705}
 .tag--finished .tag__medal{font-size:11px;line-height:1;flex:none}
-.tag--finished .tag__next{opacity:.8;text-transform:uppercase;letter-spacing:.1em;font-size:9px;color:var(--gold)}
+/* an item that has come off the floor is ruled off, rather than labelled */
+.tag--finished .tag__code{text-decoration:line-through;text-decoration-thickness:1.5px}
 .tag--finished:has(.tag__main:hover){background:var(--stop-tint);border-color:var(--stop);color:var(--stop)}
-.tag--finished:has(.tag__main:hover) .tag__next{color:var(--stop)}
 .metahint{cursor:help;border-bottom:1px dotted var(--rule-2)}
 .metahint:hover{border-bottom-color:var(--ink-2);color:var(--ink)}
 .modal{
@@ -1085,15 +1084,11 @@ const COPY = {
     markDone: 'Mark {n} done',
     markDoneAside: 'or tick items one at a time',
     tagAfter: 'after {name}',
-    /* shown on an item you have just ticked off, when its route continues —
-       tells whoever is holding the part where to send it. The arrow is part
-       of the line and can be changed or dropped. */
-    tagNext: '→ {name}',
-    /* an item whose route ends with the operation just ticked off — it can
-       come off the bench entirely */
-    tagFinished: 'finished',
-    /* the mark on a finished item. Any character, or '' for none — a flag 🏁
-       or a tick ✓ work just as well as the trophy. */
+    /* An item whose route ends with the operation just ticked off has come off
+       the floor: its code is ruled through, and this is the mark beside it.
+       Any character, or '' for none — a flag 🏁 or a tick ✓ work just as well
+       as the trophy. Where a part goes next is not written on the tag; hovering
+       it shows the item's whole route instead. */
     tagFinishedMark: '🏆',
 
     /* Short phrases on the card's meta line. The ones with a matching …Tip
@@ -2440,13 +2435,10 @@ function renderRun() {
       const it = item(o.itemId);
       if (!it) return '';
       const waitOn = (done || ready || oneWait) ? '' : workName(routeOf(o.itemId)[prog(o.itemId)]);
-      /* where this part goes after the operation just ticked off — only while
-         it is still sitting at this bench, and only if the route continues */
-      const nx = o.idx + 1;
-      const sendTo = (done && nx < routeOf(o.itemId).length && nx >= prog(o.itemId))
-        ? workName(routeOf(o.itemId)[nx]) : '';
-      /* nothing left on this item's route — it leaves the work area */
-      const finished = done && nx >= routeOf(o.itemId).length;
+      /* nothing left on this item's route — it leaves the work area. Where a
+         part goes next is not spelled out here: hovering it shows the whole
+         route, which says that and more without crowding the block. */
+      const finished = done && o.idx + 1 >= routeOf(o.itemId).length;
       const urgent = urgentNow.has(o.itemId);
       /* aria-label rather than title: the whole tag carries a hover tooltip of
          its own, and a native one on top of it would be two at once */
@@ -2460,10 +2452,11 @@ function renderRun() {
         '<button class="tag__main"' + attrs + '>' +
           (finished
             ? (C.tagFinishedMark ? '<span class="tag__medal">' + esc(C.tagFinishedMark) + '</span>' : '')
-            : (done || ready ? '<span class="tag__box">✓</span>' : '')) + esc(it.code) +
+            : (done || ready ? '<span class="tag__box">✓</span>' : '')) +
+          /* a finished item is struck through rather than labelled, so its own
+             span to draw the line over */
+          '<span class="tag__code">' + esc(it.code) + '</span>' +
           (waitOn ? '<span class="tag__wait">' + esc(t(C.tagAfter, { name: waitOn })) + '</span>' : '') +
-          (sendTo ? '<span class="tag__next">' + esc(t(C.tagNext, { name: sendTo })) + '</span>' : '') +
-          (finished ? '<span class="tag__next">' + esc(C.tagFinished) + '</span>' : '') +
         '</button>' +
         '<button class="tag__jump" data-route-item="' + o.itemId +
           '" aria-label="' + goRoute + '">↗</button>' +
