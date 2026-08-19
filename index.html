@@ -593,6 +593,13 @@ td.mx__cell{width:62px;background:var(--white)}
   color:#5E3A02;margin-bottom:12px;
 }
 .notice b{font-weight:700}
+/* follows the ticking down a long card list; sits under the topbar, like .rail */
+.notice--pin{
+  position:sticky;top:74px;z-index:30;align-items:center;
+  box-shadow:0 2px 8px rgba(20,24,27,.10);
+}
+.notice--pin .btn{flex:none;border-color:var(--hold);color:#5E3A02;background:var(--white)}
+.notice--pin .btn:hover{background:var(--hold);border-color:var(--hold);color:var(--white)}
 .toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--panel-2);border:1px solid var(--rule);border-radius:3px;padding:11px 13px;margin-bottom:14px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 details.fold{margin-top:18px}
@@ -637,6 +644,8 @@ details.fold > summary:hover{color:var(--ink)}
   .hero{gap:10px;padding-bottom:10px}
   .hero__eq{padding-bottom:0}
   .runcard__punch{display:none}
+  /* the topbar wraps to two rows down here, so there is no height to stick to */
+  .notice--pin{position:static}
 }
 @media (prefers-reduced-motion:reduce){
   *{transition-duration:.01ms !important;animation-duration:.01ms !important}
@@ -1002,6 +1011,15 @@ const COPY = {
     urgentSplitSooner_one: '{n} batch',
     urgentSplitSooner_many: '{n} batches',
     urgentWhole: 'Nothing clears them before batch {n}, so the batches stay whole.',
+
+    /* Ticking work off can open up a shorter plan, but the cards hold the
+       order they had until this is acted on — so a setup being worked through
+       never rearranges itself mid-job. Shown only when there are setups in it. */
+    replanLead_one: 'Re-planning the work left would save {n} setup.',
+    replanLead_many: 'Re-planning the work left would save {n} setups.',
+    replanBody: 'The cards below keep the order you started with until you ask.',
+    replanAction: 'Re-plan',
+    replanned: 'Re-planned',
 
     allDoneTitle: 'Every operation is done.',
     allDoneBody: 'All items are finished — steps below are clear to assemble.',
@@ -1445,6 +1463,97 @@ const STAMP = () => ({
 });
 
 /* ============================================================
+   The pinned plan
+
+   computePlan() is a fresh greedy every time it is called, so ticking one
+   item off could reshuffle every card below it — the setup you are working
+   through rearranging itself under your hands. So the run page draws from a
+   pinned plan and leaves it alone while you tick.
+
+   Ticking only ever removes work, so the pin is folded forward rather than
+   redrawn: finished operations come out, emptied batches go, and everything
+   else keeps its place. The pin itself stays pristine, so putting work back
+   restores the batch it came from.
+
+   A pin is dropped the moment the planner's own inputs change — a route
+   edited, a work type moved, something marked urgent. Ticking is the one
+   thing it survives, and if ticking has opened up a genuinely shorter plan
+   the page says so and waits to be asked.
+   ============================================================ */
+let pinned = null;   /* the plan the run page is drawn from, as first computed */
+let planGain = 0;    /* setups a re-plan would save now — 0 when there is nothing in it */
+
+/* Everything buildPlan reads except progress. Progress is the one input a pin
+   is meant to outlive, so it is deliberately not in here. */
+function planKey() {
+  return JSON.stringify([
+    state.works.map(w => w.id),
+    state.items.map(i => [i.id, routeOf(i.id)]),
+    Array.from(urgentSet()).sort()
+  ]);
+}
+
+function freshPlan() {
+  const p = computePlan();
+  p.key = planKey();
+  p.len = p.batches.length;   /* the count the urgent verdict was written against */
+  return p;
+}
+
+/* Work completed since the pin was taken, folded out of it. Returns a new
+   plan each time and never touches the pin, so an untick brings its operation
+   back where it was rather than leaving a hole. */
+function foldPin(p) {
+  /* item() is a linear scan, and this runs over every outstanding operation on
+     every tick — so the liveness check goes through a set instead */
+  const live = new Set(state.items.map(i => i.id));
+  const batches = [];
+  p.batches.forEach(b => {
+    const ops = b.ops.filter(o =>
+      live.has(o.itemId) && o.idx >= prog(o.itemId) && routeOf(o.itemId)[o.idx] === b.workId);
+    if (ops.length) batches.push({ workId: b.workId, later: 0, urgent: b.urgent, ops: ops });
+  });
+  /* "more later" counts this work type still queued behind the setup in hand */
+  batches.forEach((b, k) => {
+    for (let j = k + 1; j < batches.length; j++) {
+      if (batches[j].workId === b.workId) b.later += batches[j].ops.length;
+    }
+  });
+  return { batches: batches, finish: finishMap(batches), len: p.len,
+    split: p.split, clear: p.clear, baseline: p.baseline };
+}
+
+/* which setup each item comes off the floor in, read off the batches in hand */
+function finishMap(batches) {
+  const finish = {}, left = {};
+  state.items.forEach(i => {
+    left[i.id] = routeOf(i.id).length - prog(i.id);
+    if (itemDone(i.id)) finish[i.id] = 0;
+  });
+  batches.forEach((b, k) => {
+    b.ops.forEach(o => { if (--left[o.itemId] === 0) finish[o.itemId] = k + 1; });
+  });
+  return finish;
+}
+
+/* what the run page draws: the pin, folded forward — re-pinned if its inputs moved */
+function livePlan() {
+  if (!pinned || pinned.key !== planKey()) {
+    pinned = freshPlan();
+    planGain = 0;
+  }
+  return foldPin(pinned);
+}
+
+/* After progress moves: is holding this plan still costing nothing? Recomputed
+   rather than latched, so the figure quoted stays true and the notice takes
+   itself down if further ticking closes the gap. */
+function checkPlanGain() {
+  if (!pinned) return;
+  planGain = Math.max(0, foldPin(pinned).batches.length - computePlan().batches.length);
+}
+
+/* ============================================================
    Mutations
    ============================================================ */
 /* Ticking work off records which setup it was run in. That ledger is what
@@ -1459,6 +1568,7 @@ function logOp(itemId, idx) {
 function tickOp(itemId, idx) {
   state.progress[itemId] = idx + 1;
   logOp(itemId, idx);
+  checkPlanGain();
   render();
 }
 function rollback(itemId, idx) {
@@ -1466,6 +1576,7 @@ function rollback(itemId, idx) {
   state.progress[itemId] = Math.max(0, idx);
   state.ledger.forEach(e => { e.ops = e.ops.filter(o => !(o.itemId === itemId && o.idx >= idx)); });
   state.ledger = state.ledger.filter(e => e.ops.length);
+  checkPlanGain();
   render();
   if (undone > 1) toast(t(COPY.run.putBack, { n: undone, name: item(itemId).code }));
 }
@@ -1934,7 +2045,7 @@ function renderRun() {
   }
 
   cleanLedger();
-  const plan = computePlan();
+  const plan = livePlan();
   const total = totalOps(), done = doneOps();
   const pct = total ? Math.round(done / total * 100) : 0;
   const remaining = total - done;
@@ -1964,7 +2075,9 @@ function renderRun() {
   if (urgentNow.size) {
     const was = plan.baseline.batches.length, wasClear = plan.baseline.clear;
     if (plan.split) {
-      const extra = b.length - was, sooner = wasClear - plan.clear;
+      /* plan.len, not the batches in hand: the verdict describes the split as
+         it was drawn up, and should not drift as those batches are ticked off */
+      const extra = plan.len - was, sooner = wasClear - plan.clear;
       verdict = t(C.urgentSplit, {
         extra: tp(extra, C.urgentSplitExtra_one, C.urgentSplitExtra_many),
         sooner: tp(sooner, C.urgentSplitSooner_one, C.urgentSplitSooner_many),
@@ -2026,6 +2139,18 @@ function renderRun() {
   }
   const offset = ledgerCount - (merged ? 1 : 0);
   const dispNum = f => String(offset + f).padStart(2, '0');
+
+  /* Sticky, so it is still to hand when the ticking has moved well down a long
+     list of cards — and it stays put until it is acted on. */
+  if (planGain > 0) {
+    h += '<div class="notice notice--pin">' +
+      '<span aria-hidden="true">↻</span>' +
+      '<span><b>' + esc(tp(planGain, C.replanLead_one, C.replanLead_many)) + '</b> ' +
+        esc(C.replanBody) + '</span>' +
+      '<span class="row__spacer"></span>' +
+      '<button class="btn btn--sm" data-replan>' + esc(C.replanAction) + '</button>' +
+    '</div>';
+  }
 
   h += '<div class="runcols"><div>';
 
@@ -2254,6 +2379,7 @@ function applyData(d) {
   state.priority = d.priority || [];
   state.priorityItems = d.priorityItems || [];
   state.picked = {}; state.focus = null; state.edit = null; state.confirm = null; state.workFilter = '';
+  pinned = null; planGain = 0;   /* another sheet's plan is not this one's */
 }
 
 function loadStore() {
@@ -2793,12 +2919,20 @@ $('#view-run').addEventListener('click', e => {
   }
   const un = e.target.closest('[data-untick]');
   if (un) { rollback(un.dataset.untick, Number(un.dataset.idx)); return; }
+  if (e.target.closest('[data-replan]')) {
+    pinned = null;
+    planGain = 0;
+    render();
+    toast(COPY.run.replanned);
+    return;
+  }
   const fin = e.target.closest('[data-finish-batch]');
   if (fin) {
-    const plan = computePlan();
-    const b = plan.batches[Number(fin.dataset.finishBatch)];
+    /* the pinned plan, so the index counts off the same cards that were drawn */
+    const b = livePlan().batches[Number(fin.dataset.finishBatch)];
     if (!b) return;
     b.ops.filter(opReady).forEach(o => { state.progress[o.itemId] = o.idx + 1; logOp(o.itemId, o.idx); });
+    checkPlanGain();
     toast(t(COPY.run.batchDone, { name: workName(b.workId) }));
     return render();
   }
