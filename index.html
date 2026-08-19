@@ -2464,6 +2464,20 @@ function renderSheets() {
 /* ============================================================
    Render + tabs
    ============================================================ */
+/* the bar across the top: which mode it is in, and whose name it carries.
+   Typing in the title box redraws this on its own, without a full render. */
+function renderChrome() {
+  const open = !!currentSheet();
+  const inLib = state.tab === 'sheets';
+  const name = open ? (state.title || COPY.chrome.untitledSheet) : '';
+  document.body.classList.toggle('mode-library', inLib);
+  $('#brand-sub').textContent = inLib ? COPY.app.taglineLibrary : COPY.app.tagline;
+  $('#topbar-title').textContent = open ? name : COPY.chrome.nothingOpen;
+  $('#topbar-title').classList.toggle('crumb--none', !open);
+  $('#back-title').textContent = name;
+  $('#btn-back').style.display = open ? '' : 'none';
+}
+
 function render() {
   persist();
   const open = !!currentSheet();
@@ -2475,14 +2489,7 @@ function render() {
   $('#btn-export').disabled = !open;
   $$('.view').forEach(v => v.classList.toggle('is-active', v.id === 'view-' + state.tab));
   $('#btn-sheets').setAttribute('aria-current', String(state.tab === 'sheets'));
-  const inLib = state.tab === 'sheets';
-  const name = open ? (state.title || COPY.chrome.untitledSheet) : '';
-  document.body.classList.toggle('mode-library', inLib);
-  $('#brand-sub').textContent = inLib ? COPY.app.taglineLibrary : COPY.app.tagline;
-  $('#topbar-title').textContent = open ? name : COPY.chrome.nothingOpen;
-  $('#topbar-title').classList.toggle('crumb--none', !open);
-  $('#back-title').textContent = name;
-  $('#btn-back').style.display = open ? '' : 'none';
+  renderChrome();
   if (state.tab === 'define') {
     $('#sheet-title').value = state.title;
     $('#sheet-desc').value = state.description;
@@ -3121,14 +3128,7 @@ $('#btn-back').addEventListener('click', () => go(state.stage));
 $('#view-define').addEventListener('input', e => {
   if (e.target.id === 'sheet-title') {
     state.title = e.target.value;
-    const inLib = state.tab === 'sheets';
-  const name = open ? (state.title || COPY.chrome.untitledSheet) : '';
-  document.body.classList.toggle('mode-library', inLib);
-  $('#brand-sub').textContent = inLib ? COPY.app.taglineLibrary : COPY.app.tagline;
-  $('#topbar-title').textContent = open ? name : COPY.chrome.nothingOpen;
-  $('#topbar-title').classList.toggle('crumb--none', !open);
-  $('#back-title').textContent = name;
-  $('#btn-back').style.display = open ? '' : 'none';
+    renderChrome();
     persist();
   }
   if (e.target.id === 'sheet-desc') { state.description = e.target.value; persist(); }
