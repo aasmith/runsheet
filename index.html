@@ -248,6 +248,14 @@ main{max-width:1320px;margin:0 auto;padding:24px 20px 90px}
   width:20px;text-align:right;flex:none;
 }
 .row__ops{font-family:var(--mono);font-size:10px;color:var(--ink-3);white-space:nowrap}
+/* the step-attach button on an item row, with its count of steps */
+.rowstep{
+  font-family:var(--mono);font-size:10px;font-weight:700;line-height:1.2;
+  border:1px solid var(--rule-2);background:var(--white);color:var(--ink-3);
+  border-radius:2px;padding:3px 6px;cursor:pointer;flex:none;
+}
+.rowstep:hover{border-color:var(--ink);color:var(--ink)}
+.rowstep[data-on="1"]{border-color:var(--blue);color:var(--blue)}
 .empty{
   border:1.5px dashed var(--rule-2);border-radius:3px;padding:16px;text-align:center;
   color:var(--ink-2);font-size:13px;
@@ -878,6 +886,29 @@ const COPY = {
     stepSubCount_many: '{n} steps',
     stepSubLoop: '{name} already contains this step',
 
+    /* A step card lists the items it holds, not every item there is. The rest
+       are attached through the picker. */
+    stepChooseItems: 'Choose items',
+    stepAddMore: '+ add',
+    stepMore: '+{n} more',
+    stepDetachTip: 'Take {name} off this step',
+    stepPickTitle: 'Items on {name}',
+    stepPickFilter: 'Filter by code or description',
+    stepPickNoMatch: 'No item matches that.',
+    stepPickEmpty: 'This runsheet has no items yet.',
+    stepPickCount_one: '{n} attached',
+    stepPickCount_many: '{n} attached',
+    /* an item can sit on more than one step, which is worth knowing while
+       attaching it to another */
+    stepPickAlsoOn: 'also on {list}',
+
+    /* the other way round: putting one item on its steps, from the items list */
+    itemStepsTip: 'Put {name} on a step',
+    itemStepsTitle: 'Steps holding {name}',
+    itemStepsEmpty: 'No steps yet — add one and it will show up here.',
+    itemStepsCount_one: '{n} step',
+    itemStepsCount_many: '{n} steps',
+
     addButton: 'Add',
     renameTip: 'Rename',
     saveEdit: 'Save',
@@ -999,8 +1030,6 @@ const COPY = {
     pickNoMatch: 'No item matches that.',
     pickNoItems: 'This runsheet has no items yet.',
     pickCount: '{n} marked urgent',
-    pickClear: 'Clear all',
-    pickDone: 'Done',
     pickItemOps_one: '{n} op left',
     pickItemOps_many: '{n} ops left',
     pickItemDone: 'finished',
@@ -1133,6 +1162,12 @@ const COPY = {
     agoMinutes: '{n} min ago',
     agoHours: '{n} hr ago',
     agoDays: '{n} days ago'
+  },
+
+  /* --- the tick-list picker, wherever it is opened from ------------------ */
+  picker: {
+    clear: 'Clear all',
+    done: 'Done'
   },
 
   /* --- the JSON box, for moving a runsheet by copy and paste ------------- */
@@ -1716,6 +1751,9 @@ function confirmBar(kind, id, wide) {
   '</div>';
 }
 
+/* how many item chips a step card shows before the rest go behind the picker */
+const STEP_CHIPS = 12;
+
 function renderDefine() {
   const C = COPY.define;
   $('#count-items').textContent = state.items.length;
@@ -1725,6 +1763,9 @@ function renderDefine() {
   const editing = (kind, id) => ed && ed.kind === kind && ed.id === id;
   const cf = state.confirm;
   const confirming = (kind, id) => cf && cf.kind === kind && cf.id === id;
+  /* how many steps each item is on, counted once rather than scanned per row */
+  const onSteps = {};
+  state.steps.forEach(s => ownItems(s).forEach(id => { onSteps[id] = (onSteps[id] || 0) + 1; }));
 
   const li = $('#list-items');
   li.innerHTML = state.items.length ? state.items.map(it => {
@@ -1737,12 +1778,21 @@ function renderDefine() {
       '</li>';
     }
     const n = routeOf(it.id).length;
+    /* Attaching from this end saves walking the step cards one at a time. The
+       count doubles as the readout of where this item already sits. */
+    const on = onSteps[it.id] || 0;
     return '<li class="row">' +
       '<button class="rowtext" data-edit-item="' + it.id + '" title="' + esc(C.renameTip) + '">' +
         '<span class="row__code">' + esc(it.code) + '</span>' +
         '<span class="row__name">' + esc(it.name) + '</span>' +
       '</button>' +
       '<span class="row__ops">' + esc(n ? tp(n, C.itemOps_one, C.itemOps_many) : C.itemNoRoute) + '</span>' +
+      (state.steps.length
+        ? '<button class="rowstep" data-item-steps="' + it.id + '" data-on="' + (on ? 1 : 0) +
+            '" title="' + esc(t(C.itemStepsTip, { name: it.code })) +
+            '" aria-label="' + esc(t(C.itemStepsTip, { name: it.code })) + '">▣' +
+            (on ? ' ' + on : '') + '</button>'
+        : '') +
       '<button class="icon-btn" data-del-item="' + it.id + '" title="' + esc(C.removeItemTip) + '" aria-label="' + esc(t(C.removeItemLabel, { name: it.code })) + '">✕</button>' +
     '</li>';
   }).join('') : emptyBox(C.itemsEmptyTitle, C.itemsEmptyBody);
@@ -1770,10 +1820,20 @@ function renderDefine() {
 
   const ls = $('#list-steps');
   ls.innerHTML = state.steps.length ? state.steps.map(st => {
-    const chips = state.items.length
-      ? state.items.map(it => '<button class="chip" data-step-item="' + st.id + '" data-item="' + it.id +
-          '" aria-pressed="' + (ownItems(st).indexOf(it.id) > -1) + '">' + esc(it.code) + '</button>').join('')
-      : '<span class="hint" style="margin:0">' + esc(C.stepAddItemsFirst) + '</span>';
+    /* Only the items actually on this step. Listing every item on every card
+       is unreadable past a couple of dozen, so the rest are behind the picker. */
+    const own = ownItems(st).filter(id => item(id));
+    const shown = own.slice(0, STEP_CHIPS);
+    const rest = own.length - shown.length;
+    const chips = !state.items.length
+      ? '<span class="hint" style="margin:0">' + esc(C.stepAddItemsFirst) + '</span>'
+      : shown.map(id => '<button class="chip" data-step-item="' + st.id + '" data-item="' + id +
+            '" aria-pressed="true" title="' + esc(t(C.stepDetachTip, { name: item(id).code })) + '">' +
+            esc(item(id).code) + '</button>').join('') +
+        (rest > 0 ? '<button class="chip chip--more" data-step-items="' + st.id + '">' +
+          esc(t(C.stepMore, { n: rest })) + '</button>' : '') +
+        '<button class="chip" data-step-items="' + st.id + '">' +
+          esc(own.length ? C.stepAddMore : C.stepChooseItems) + '</button>';
     const others = state.steps.filter(o => o.id !== st.id);
     const subs = others.map(o => {
       const on = subSteps(st).indexOf(o.id) > -1;
@@ -2761,12 +2821,13 @@ $('#view-define').addEventListener('click', e => {
   }
   const ds = t.closest('[data-del-step]');
   if (ds) { state.edit = null; state.confirm = { kind: 'step', id: ds.dataset.delStep }; return renderDefine(); }
+  const sp = t.closest('[data-step-items]');
+  if (sp) return openPicker(stepItemsPicker(sp.dataset.stepItems));
+  const ip = t.closest('[data-item-steps]');
+  if (ip) return openPicker(itemStepsPicker(ip.dataset.itemSteps));
   const si = t.closest('[data-step-item]');
   if (si) {
-    const st = step(si.dataset.stepItem), id = si.dataset.item;
-    if (!st) return;
-    const k = st.itemIds.indexOf(id);
-    if (k > -1) st.itemIds.splice(k, 1); else st.itemIds.push(id);
+    toggleStepItem(si.dataset.stepItem, si.dataset.item);
     return render();
   }
   const ss = t.closest('[data-step-sub]');
@@ -2936,7 +2997,7 @@ $('#view-run').addEventListener('click', e => {
     toast(t(COPY.run.batchDone, { name: workName(b.workId) }));
     return render();
   }
-  if (e.target.closest('[data-pick-items]')) return openItemPicker();
+  if (e.target.closest('[data-pick-items]')) return openPicker(urgentItemsPicker());
   const pi = e.target.closest('[data-prio-item]');
   if (pi) {
     const id = pi.dataset.prioItem, k = (state.priorityItems || []).indexOf(id);
@@ -3032,63 +3093,150 @@ function openJsonIn() {
   const label = (read && read.title) || COPY.chrome.untitledSheet;
   if (acceptRead(read, label)) closeJsonBox();
 }
-/* ---- the urgent-items picker ---- */
+/* ============================================================
+   The tick-list picker
+
+   One modal, opened from three places: the urgent items on Run, the items on a
+   step, and the steps holding an item. A caller describes what to list, what
+   counts as ticked, and what a tick does — the filtering, the boxes, Clear and
+   Done are the same wherever it is opened from.
+
+   Attaching items a step at a time and an item at a time are the same job from
+   opposite ends, so they are the same modal with the two sides swapped over.
+   ============================================================ */
+let picker = null;
 let pickFilter = '';
+
+/* q arrives already lowercased — normalised once where the query is captured,
+   as the work-type filter does, rather than per row */
+const matchItem = (i, q) =>
+  !q || (i.code + ' ' + (i.name || '')).toLowerCase().indexOf(q) > -1;
+
 function renderPickList() {
-  const C = COPY.run;
+  if (!picker) return;
   const q = pickFilter.trim().toLowerCase();
-  const list = state.items.filter(i =>
-    !q || (i.code + ' ' + (i.name || '')).toLowerCase().indexOf(q) > -1);
-  const chosen = state.priorityItems || [];
-  $('#item-list').innerHTML = !state.items.length
-    ? '<span class="hint" style="margin:0">' + esc(C.pickNoItems) + '</span>'
-    : (!list.length
-      ? '<span class="hint" style="margin:0">' + esc(C.pickNoMatch) + '</span>'
-      : list.map(i => {
-          const left = routeOf(i.id).length - prog(i.id);
-          return '<button class="pickrow" data-pick-item="' + i.id + '" aria-pressed="' +
-            (chosen.indexOf(i.id) > -1) + '">' +
-            '<span class="pickrow__box">✓</span>' +
-            '<span class="pickrow__code">' + esc(i.code) + '</span>' +
-            '<span class="pickrow__nm">' + esc(i.name) + '</span>' +
-            '<span class="pickrow__ops">' + esc(left > 0
-              ? tp(left, C.pickItemOps_one, C.pickItemOps_many)
-              : C.pickItemDone) + '</span>' +
-          '</button>';
-        }).join(''));
-  $('#item-count').textContent = t(C.pickCount, { n: chosen.length });
-  $('#item-clear').disabled = !chosen.length;
+  const rows = picker.rows(q);
+  const n = picker.count();
+  $('#item-list').innerHTML = rows.length
+    ? rows.map(r =>
+        '<button class="pickrow" data-pick-row="' + r.id + '" aria-pressed="' + picker.has(r.id) + '">' +
+          '<span class="pickrow__box">✓</span>' +
+          '<span class="pickrow__code">' + esc(r.code) + '</span>' +
+          '<span class="pickrow__nm">' + esc(r.name || '') + '</span>' +
+          (r.meta ? '<span class="pickrow__ops">' + esc(r.meta) + '</span>' : '') +
+        '</button>').join('')
+    : '<span class="hint" style="margin:0">' + esc(q ? picker.noMatch : picker.empty) + '</span>';
+  $('#item-count').textContent = picker.countLabel(n);
+  $('#item-clear').disabled = !n;
 }
-function openItemPicker() {
-  const C = COPY.run;
+
+function openPicker(cfg) {
+  picker = cfg;
   pickFilter = '';
-  $('#item-title').textContent = C.pickTitle;
-  $('#item-filter').placeholder = C.pickFilter;
-  $('#item-filter').value = '';
-  $('#item-clear').textContent = C.pickClear;
-  $('#item-done').textContent = C.pickDone;
+  const filt = $('#item-filter');
+  $('#item-title').textContent = cfg.title;
+  filt.value = '';
+  filt.placeholder = cfg.filter || '';
+  /* a short list needs no filter box, and an empty one would just be in the way */
+  filt.parentNode.hidden = !cfg.filter;
+  $('#item-clear').hidden = !cfg.clear;
+  $('#item-clear').textContent = COPY.picker.clear;
+  $('#item-done').textContent = COPY.picker.done;
   renderPickList();
   $('#itembox').hidden = false;
-  $('#item-filter').focus();
+  (cfg.filter ? filt : $('#item-done')).focus();
 }
-function closeItemPicker() {
+function closePicker() {
   $('#itembox').hidden = true;
+  picker = null;
   render();
 }
+
+/* the items pulled forward on the run page */
+function urgentItemsPicker() {
+  const C = COPY.run;
+  return {
+    title: C.pickTitle, filter: C.pickFilter,
+    empty: C.pickNoItems, noMatch: C.pickNoMatch,
+    countLabel: n => t(C.pickCount, { n: n }),
+    rows: q => state.items.filter(i => matchItem(i, q)).map(i => {
+      const left = routeOf(i.id).length - prog(i.id);
+      return { id: i.id, code: i.code, name: i.name,
+        meta: left > 0 ? tp(left, C.pickItemOps_one, C.pickItemOps_many) : C.pickItemDone };
+    }),
+    has: id => (state.priorityItems || []).indexOf(id) > -1,
+    toggle: id => {
+      state.priorityItems = state.priorityItems || [];
+      const k = state.priorityItems.indexOf(id);
+      if (k > -1) state.priorityItems.splice(k, 1); else state.priorityItems.push(id);
+    },
+    clear: () => { state.priorityItems = []; },
+    count: () => (state.priorityItems || []).filter(id => item(id)).length
+  };
+}
+
+/* which items a step holds — from that step's card on Define */
+function stepItemsPicker(stepId) {
+  const C = COPY.define;
+  const own = () => ownItems(step(stepId));
+  return {
+    title: t(C.stepPickTitle, { name: (step(stepId) || {}).name || '' }),
+    filter: C.stepPickFilter, empty: C.stepPickEmpty, noMatch: C.stepPickNoMatch,
+    countLabel: n => tp(n, C.stepPickCount_one, C.stepPickCount_many),
+    rows: q => state.items.filter(i => matchItem(i, q)).map(i => {
+      const also = state.steps.filter(o => o.id !== stepId && ownItems(o).indexOf(i.id) > -1);
+      return { id: i.id, code: i.code, name: i.name,
+        meta: also.length ? t(C.stepPickAlsoOn, { list: also.map(o => o.name).join(', ') }) : '' };
+    }),
+    has: id => own().indexOf(id) > -1,
+    toggle: id => toggleStepItem(stepId, id),
+    clear: () => { const st = step(stepId); if (st) st.itemIds = []; },
+    count: () => own().filter(id => item(id)).length
+  };
+}
+
+/* the same attachment from the other end: which steps hold this item */
+function itemStepsPicker(itemId) {
+  const C = COPY.define;
+  return {
+    title: t(C.itemStepsTitle, { name: (item(itemId) || {}).code || '' }),
+    filter: '', empty: C.itemStepsEmpty, noMatch: C.itemStepsEmpty,
+    countLabel: n => tp(n, C.itemStepsCount_one, C.itemStepsCount_many),
+    rows: () => state.steps.map(s => ({
+      id: s.id, code: s.name, name: '',
+      meta: tp(stepItemSet(s.id).size, C.stepItemCount_one, C.stepItemCount_many)
+    })),
+    has: id => ownItems(step(id)).indexOf(itemId) > -1,
+    toggle: id => toggleStepItem(id, itemId),
+    clear: null,
+    count: () => state.steps.filter(s => ownItems(s).indexOf(itemId) > -1).length
+  };
+}
+
+/* one item on or off one step — every way of attaching goes through here */
+function toggleStepItem(stepId, itemId) {
+  const st = step(stepId);
+  if (!st || !item(itemId)) return;
+  st.itemIds = ownItems(st);
+  const k = st.itemIds.indexOf(itemId);
+  if (k > -1) st.itemIds.splice(k, 1); else st.itemIds.push(itemId);
+}
+
 $('#item-list').addEventListener('click', e => {
-  const row = e.target.closest('[data-pick-item]');
-  if (!row) return;
-  const id = row.dataset.pickItem;
-  state.priorityItems = state.priorityItems || [];
-  const k = state.priorityItems.indexOf(id);
-  if (k > -1) state.priorityItems.splice(k, 1); else state.priorityItems.push(id);
+  const row = e.target.closest('[data-pick-row]');
+  if (!row || !picker) return;
+  picker.toggle(row.dataset.pickRow);
   renderPickList();
 });
 $('#item-filter').addEventListener('input', e => { pickFilter = e.target.value; renderPickList(); });
-$('#item-clear').addEventListener('click', () => { state.priorityItems = []; renderPickList(); });
-$('#item-done').addEventListener('click', closeItemPicker);
-$('#item-close').addEventListener('click', closeItemPicker);
-$('#itembox').addEventListener('click', e => { if (e.target.id === 'itembox') closeItemPicker(); });
+$('#item-clear').addEventListener('click', () => {
+  if (!picker || !picker.clear) return;
+  picker.clear();
+  renderPickList();
+});
+$('#item-done').addEventListener('click', closePicker);
+$('#item-close').addEventListener('click', closePicker);
+$('#itembox').addEventListener('click', e => { if (e.target.id === 'itembox') closePicker(); });
 
 $('#btn-copy-json').addEventListener('click', () => openJsonBox('copy', null));
 $('#btn-paste-json').addEventListener('click', () => openJsonBox('paste'));
@@ -3100,7 +3248,7 @@ $('#json-action').addEventListener('click', () => {
 $('#jsonbox').addEventListener('click', e => { if (e.target.id === 'jsonbox') closeJsonBox(); });
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && !$('#jsonbox').hidden) closeJsonBox();
-  if (e.key === 'Escape' && !$('#itembox').hidden) closeItemPicker();
+  if (e.key === 'Escape' && !$('#itembox').hidden) closePicker();
 });
 
 $('#btn-export').addEventListener('click', () => { persist(); saveFile(null); });
