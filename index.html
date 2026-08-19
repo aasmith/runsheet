@@ -1281,6 +1281,26 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>
 let seq = 0;
 const uid = p => p + '_' + (++seq) + Math.random().toString(36).slice(2, 5);
 
+/* A render replaces a whole panel, which throws away the scroll position of any
+   list inside it — so clicking something in a long list used to send you back
+   to the top of it. This puts the reader back where they were. */
+function keepingScroll(sel, redraw) {
+  const before = $(sel);
+  const at = before ? before.scrollTop : null;
+  redraw();
+  const after = $(sel);
+  if (after && at) after.scrollTop = at;
+  return after;
+}
+/* Bring a row into view inside its own scrolling list, moving it as little as
+   possible — and never moving the page, which scrollIntoView would. */
+function revealRow(list, row) {
+  if (!list || !row) return;
+  const r = row.getBoundingClientRect(), box = list.getBoundingClientRect();
+  if (r.top < box.top) list.scrollTop -= box.top - r.top;
+  else if (r.bottom > box.bottom) list.scrollTop += r.bottom - box.bottom;
+}
+
 const state = {
   title: '', description: '',
   items: [], works: [], steps: [],
@@ -2118,13 +2138,20 @@ function renderRoute() {
       spare.map(w => '<span class="tally__chip">' + esc(w.name) + '</span>').join('') + '</span>' : '') +
   '</div>';
 
-  host.innerHTML = h;
+  /* Every click on this page redraws both panels, so hold the items list where
+     it was — picking an item, or building its route, should not send you back
+     to the top of a long list. */
+  const list = keepingScroll('#route-body .itemlist', () => { host.innerHTML = h; });
+
+  /* The focused item may be somewhere else entirely — a tally chip at the foot
+     of the page focuses one that could be far up the list, and arriving from the
+     run page focuses one that has never been on screen. So make sure the row is
+     visible, having just held the list still. */
+  revealRow(list, $('#route-body .ritem[aria-current="true"]'));
 
   /* arriving from the run page: put the chosen item in front of you */
   if (focusPending) {
     focusPending = false;
-    const row = $('.ritem[aria-current="true"]');
-    if (row) row.scrollIntoView({ block: 'nearest' });
     const panel = $$('#route-body .panel')[1];
     if (panel && window.innerWidth <= 1020) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -3274,7 +3301,11 @@ function renderPickList() {
   const q = pickFilter.trim().toLowerCase();
   const rows = picker.rows(q);
   const n = picker.count();
-  $('#item-list').innerHTML = rows.length
+  /* ticking a row redraws the whole list, so hold it still — with two hundred
+     items to work through, being thrown back to the top on every tick is no use */
+  const box = $('#item-list');
+  const at = box.scrollTop;
+  box.innerHTML = rows.length
     ? rows.map(r =>
         '<button class="pickrow" data-pick-row="' + r.id + '" aria-pressed="' + picker.has(r.id) + '">' +
           '<span class="pickrow__box">✓</span>' +
@@ -3283,6 +3314,7 @@ function renderPickList() {
           (r.meta ? '<span class="pickrow__ops">' + esc(r.meta) + '</span>' : '') +
         '</button>').join('')
     : '<span class="hint" style="margin:0">' + esc(q ? picker.noMatch : picker.empty) + '</span>';
+  if (at) box.scrollTop = at;
   $('#item-count').textContent = picker.countLabel(n);
   $('#item-clear').disabled = !n;
 }
@@ -3299,6 +3331,7 @@ function openPicker(cfg) {
   $('#item-clear').hidden = !cfg.clear;
   $('#item-clear').textContent = COPY.picker.clear;
   $('#item-done').textContent = COPY.picker.done;
+  $('#item-list').scrollTop = 0;   /* the box is reused; don't inherit last time's place */
   renderPickList();
   $('#itembox').hidden = false;
   (cfg.filter ? filt : $('#item-done')).focus();
@@ -3385,7 +3418,12 @@ $('#item-list').addEventListener('click', e => {
   picker.toggle(row.dataset.pickRow);
   renderPickList();
 });
-$('#item-filter').addEventListener('input', e => { pickFilter = e.target.value; renderPickList(); });
+/* a new filter is a different list, so this one does start at the top */
+$('#item-filter').addEventListener('input', e => {
+  pickFilter = e.target.value;
+  renderPickList();
+  $('#item-list').scrollTop = 0;
+});
 $('#item-clear').addEventListener('click', () => {
   if (!picker || !picker.clear) return;
   picker.clear();
