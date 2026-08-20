@@ -1108,6 +1108,12 @@ const COPY = {
     /* Short phrases on the card's meta line. The ones with a matching …Tip
        line show that tip on hover, so keep the phrase brief and put the
        detail in the tip. */
+    /* parts whose first operation this is — new arrivals at the bench */
+    cardStarts_one: '{n} starts here',
+    cardStarts_many: '{n} start here',
+    cardStarted_one: '{n} started',
+    cardStarted_many: '{n} started',
+    cardStartsTip: 'Comes onto the floor at this setup: {list}',
     cardFinishes_one: '{n} finishes here',
     cardFinishes_many: '{n} finish here',
     cardFinished_one: '{n} finished',
@@ -2487,6 +2493,8 @@ function renderRun() {
     const all = batch.done.concat(batch.ops).sort(byCode);
     const isDone = new Set(batch.done.map(o => o.itemId + '#' + o.idx));
     const codes = ops => ops.map(o => codeOf[o.itemId]).filter(Boolean).join(', ');
+    /* first operation on the part, so it arrives at the bench for this setup */
+    const starters = all.filter(o => o.idx === 0);
     const finishers = all.filter(o => o.idx === routeOf(o.itemId).length - 1);
     const urgents = all.filter(o => urgentNow.has(o.itemId));
     const count = batch.done.length + batch.ops.length;
@@ -2499,6 +2507,13 @@ function renderRun() {
     if (batch.later) {
       bits.push(hint(t(C.cardMoreLater, { n: batch.later }),
         t(C.cardMoreLaterTip, { n: batch.later, name: workName(batch.workId) })));
+    }
+    if (starters.length) {
+      bits.push(hint(
+        st === 'done'
+          ? tp(starters.length, C.cardStarted_one, C.cardStarted_many)
+          : tp(starters.length, C.cardStarts_one, C.cardStarts_many),
+        t(C.cardStartsTip, { list: codes(starters) })));
     }
     if (finishers.length) {
       bits.push(hint(
