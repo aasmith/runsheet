@@ -1655,6 +1655,26 @@ function livePlan() {
   return foldPin(pinned);
 }
 
+/* Does the pin still hold every operation in this range, so folding it forward
+   can hand them back?
+
+   Two kinds of untick. Undoing a tick made since the pin was taken gives back
+   an operation the pin still lists, and folding restores it to the batch it came
+   from — which is what keeps a mis-tick from rearranging the page. But work that
+   was already done when the pin was taken is not in the pin at all: a plan only
+   ever covers what is outstanding. Nothing can fold that back, so the pin has to
+   go and a fresh plan drawn, which is what reloading used to do by hand. */
+function pinCovers(itemId, from, to) {
+  if (!pinned) return false;
+  if (from >= to) return true;
+  const have = new Set();
+  pinned.batches.forEach(b => b.ops.forEach(o => {
+    if (o.itemId === itemId) have.add(o.idx);
+  }));
+  for (let i = from; i < to; i++) if (!have.has(i)) return false;
+  return true;
+}
+
 /* After progress moves: is holding this plan still costing nothing? Recomputed
    rather than latched, so the figure quoted stays true and the notice takes
    itself down if further ticking closes the gap. */
@@ -1682,7 +1702,10 @@ function tickOp(itemId, idx) {
   render();
 }
 function rollback(itemId, idx) {
-  const undone = prog(itemId) - idx;
+  const was = prog(itemId);
+  const undone = was - idx;
+  /* work the pin cannot hand back needs a plan that has room for it */
+  if (!pinCovers(itemId, idx, was)) pinned = null;
   state.progress[itemId] = Math.max(0, idx);
   state.ledger.forEach(e => { e.ops = e.ops.filter(o => !(o.itemId === itemId && o.idx >= idx)); });
   state.ledger = state.ledger.filter(e => e.ops.length);
