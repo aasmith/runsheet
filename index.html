@@ -2560,12 +2560,12 @@ function renderRun() {
   if (!state.steps.length) {
     h += '<div class="empty">' + esc(C.stepsNone) + '</div>';
   } else {
-    const depth = s => {
-      let d = 0;
-      subSteps(s).forEach(sid => { const c = step(sid); if (c) d = Math.max(d, depth(c) + 1); });
-      return d;
-    };
-    state.steps.slice().sort((a, x) => depth(a) - depth(x)).forEach(s => {
+    /* In the order they were written down on Define. This used to sort by how
+       deeply a step nested, putting sub-assemblies before the assemblies that
+       consume them — which reads as arbitrary to anyone who did not know the
+       rule, and told you nothing the "clear after batch NN" line below does not
+       say better. */
+    state.steps.forEach(s => {
       const ids = Array.from(stepItemSet(s.id));
       const tot = ids.reduce((n, id) => n + routeOf(id).length, 0);
       const dn = ids.reduce((n, id) => n + prog(id), 0);
