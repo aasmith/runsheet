@@ -87,6 +87,8 @@ input,select,textarea{font-family:inherit;font-size:14px;color:var(--ink)}
 }
 .field:focus{border-color:var(--blue);outline:none}
 .field--mono{font-family:var(--mono);font-size:13px}
+.grip{color:var(--rule-2);font-size:11px;letter-spacing:-2px;flex:none;cursor:grab}
+.grip:active{cursor:grabbing}
 
 /* ---------- top bar ---------- */
 .topbar{
@@ -283,6 +285,11 @@ main{max-width:1320px;margin:0 auto;padding:24px 20px 90px}
 .stepcard{background:var(--white);border:1px solid var(--rule);border-radius:2px;padding:10px;margin-bottom:8px}
 .stepcard__head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
 .stepcard__name{font-weight:700;font-size:13px}
+.stepcard:hover .grip{color:var(--ink-3)}
+/* dragged, and the two edges it can land against — as the route operations do */
+.stepcard.is-drag{opacity:.35}
+.stepcard.is-over{border-color:var(--blue);box-shadow:0 -3px 0 -1px var(--blue)}
+.stepcard.is-over-after{border-color:var(--blue);box-shadow:0 3px 0 -1px var(--blue)}
 
 /* ---------- route sheet (stage 02) ---------- */
 .routecols{display:grid;grid-template-columns:minmax(250px,.85fr) minmax(0,1.25fr);gap:16px;align-items:start}
@@ -1977,7 +1984,7 @@ function renderDefine() {
   }).join('') : emptyBox(C.worksEmptyTitle, C.worksEmptyBody);
 
   const ls = $('#list-steps');
-  ls.innerHTML = state.steps.length ? state.steps.map(st => {
+  ls.innerHTML = state.steps.length ? state.steps.map((st, i) => {
     /* Only the items actually on this step. Listing every item on every card
        is unreadable past a couple of dozen, so the rest are behind the picker. */
     const own = ownItems(st).filter(id => item(id));
@@ -2009,13 +2016,21 @@ function renderDefine() {
           editActions() +
         '</div>'
       : '<div class="stepcard__head">' +
+          '<span class="grip" data-step-grip aria-hidden="true">⣿</span>' +
           '<button class="rowtext" data-edit-step="' + st.id + '" title="' + esc(C.renameTip) + '">' +
             '<span class="stepcard__name">' + esc(st.name) + '</span>' +
           '</button>' +
           '<span class="row__ops">' + esc(counts.join(' · ') || C.stepEmpty) + '</span>' +
+          '<button class="icon-btn" data-move-step="' + st.id + '" data-dir="-1" title="' + esc(C.moveUpTip) +
+            '" aria-label="' + esc(C.moveUpTip) + '"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
+          '<button class="icon-btn" data-move-step="' + st.id + '" data-dir="1" title="' + esc(C.moveDownTip) +
+            '" aria-label="' + esc(C.moveDownTip) + '"' + (i === state.steps.length - 1 ? ' disabled' : '') + '>↓</button>' +
           '<button class="icon-btn" data-del-step="' + st.id + '" title="' + esc(C.removeStepTip) + '">✕</button>' +
         '</div>';
-    return '<div class="stepcard' + (confirming('step', st.id) ? ' stepcard--danger' : '') + '">' +
+    /* Not draggable while its name is being edited, so selecting text in the
+       field cannot start a drag instead. */
+    return '<div class="stepcard' + (confirming('step', st.id) ? ' stepcard--danger' : '') +
+      '" data-step-id="' + st.id + '"' + (editing('step', st.id) ? '' : ' draggable="true"') + '>' +
       (confirming('step', st.id) ? confirmBar('step', st.id, true) : '') + head +
       '<div class="eyebrow" style="margin-bottom:5px">' + esc(C.stepItemsLabel) + '</div>' +
       '<div class="chips">' + chips + '</div>' +
@@ -3045,6 +3060,14 @@ $('#view-define').addEventListener('click', e => {
   }
   const ds = t.closest('[data-del-step]');
   if (ds) { state.edit = null; state.confirm = { kind: 'step', id: ds.dataset.delStep }; return renderDefine(); }
+  const ms = t.closest('[data-move-step]');
+  if (ms) {
+    const id = ms.dataset.moveStep, d = Number(ms.dataset.dir);
+    const i = state.steps.findIndex(s => s.id === id), j = i + d;
+    if (i < 0 || j < 0 || j >= state.steps.length) return;
+    const tmp = state.steps[i]; state.steps[i] = state.steps[j]; state.steps[j] = tmp;
+    return render();
+  }
   const sp = t.closest('[data-step-items]');
   if (sp) return openPicker(stepItemsPicker(sp.dataset.stepItems));
   const ip = t.closest('[data-item-steps]');
@@ -3064,6 +3087,47 @@ $('#view-define').addEventListener('click', e => {
     else if (!wouldLoop(st.id, id)) st.stepIds.push(id);
     return render();
   }
+});
+
+/* Dragging a step card to reorder it. The card is what gets dragged, so the
+   drag image is the whole card — but dragstart fires on the card whichever child
+   the pointer went down on, so where it went down is noted first. Without that,
+   a drag begun on one of the item chips would carry the card off. */
+let stepDragId = null, fromGrip = false;
+$('#view-define').addEventListener('pointerdown', e => {
+  fromGrip = !!(e.target.closest && e.target.closest('[data-step-grip]'));
+});
+$('#view-define').addEventListener('dragstart', e => {
+  const card = e.target.closest && e.target.closest('.stepcard');
+  if (!card || !fromGrip) { e.preventDefault(); return; }
+  stepDragId = card.dataset.stepId;
+  card.classList.add('is-drag');
+  e.dataTransfer.effectAllowed = 'move';
+  try { e.dataTransfer.setData('text/plain', stepDragId); } catch (err) {}
+});
+const stepHalf = (card, y) => {
+  const box = card.getBoundingClientRect();
+  return (y - box.top) > box.height / 2;
+};
+$('#view-define').addEventListener('dragover', e => {
+  const card = e.target.closest && e.target.closest('.stepcard');
+  if (!card || stepDragId === null) return;
+  e.preventDefault();
+  $$('#list-steps .stepcard').forEach(c => c.classList.remove('is-over', 'is-over-after'));
+  card.classList.add(stepHalf(card, e.clientY) ? 'is-over-after' : 'is-over');
+});
+$('#view-define').addEventListener('drop', e => {
+  const card = e.target.closest && e.target.closest('.stepcard');
+  if (!card || stepDragId === null) return;
+  e.preventDefault();
+  moveStepBy(stepDragId, card.dataset.stepId, stepHalf(card, e.clientY));
+  stepDragId = null;
+  render();
+});
+$('#view-define').addEventListener('dragend', () => {
+  stepDragId = null;
+  $$('#list-steps .stepcard').forEach(c =>
+    c.classList.remove('is-drag', 'is-over', 'is-over-after'));
 });
 
 /* -- route -- */
@@ -3441,6 +3505,19 @@ function itemStepsPicker(itemId) {
     clear: null,
     count: () => state.steps.filter(s => ownItems(s).indexOf(itemId) > -1).length
   };
+}
+
+/* Move one step to sit before or after another. Splicing it out first means the
+   landing index can just be looked up afterwards, with no arithmetic to get
+   wrong when it moves down the list rather than up. */
+function moveStepBy(id, overId, after) {
+  if (id === overId) return;
+  const from = state.steps.findIndex(s => s.id === id);
+  if (from < 0) return;
+  const moved = state.steps.splice(from, 1)[0];
+  const to = state.steps.findIndex(s => s.id === overId);
+  if (to < 0) state.steps.splice(from, 0, moved);       /* target gone: put it back */
+  else state.steps.splice(to + (after ? 1 : 0), 0, moved);
 }
 
 /* one item on or off one step — every way of attaching goes through here */
