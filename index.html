@@ -219,6 +219,17 @@ main{max-width:1320px;margin:0 auto;padding:24px 20px 90px}
 .panel__body{padding:12px 14px 14px}
 .addrow{display:flex;gap:6px;margin-bottom:12px}
 .addrow .field{flex:1;min-width:0}
+/* Each list scrolls inside its own panel. The box you type into sits above it
+   and so stays put however long the job gets, and the page stops growing to
+   the height of the longest column — which on a few hundred parts and sixty
+   steps was most of the scrolling. */
+#list-items,#list-works,#list-steps{max-height:58vh;overflow-y:auto;padding-right:2px}
+/* what was just added, marked for a moment so it can be found */
+@keyframes justadded{
+  0%{background:var(--blue-tint);border-color:var(--blue)}
+  100%{background:var(--white);border-color:var(--rule)}
+}
+.row.is-new,.stepcard.is-new{animation:justadded 1.6s ease-out}
 
 /* ---------- lists ---------- */
 .list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
@@ -1008,6 +1019,11 @@ const COPY = {
     moveDownTip: 'Move down',
     filterNoMatch: 'No work type matches that.',
     repeatedOp: '{name} added again — a route can repeat an operation',
+
+    /* the way through a long list of parts: it steps to the next one still
+       without a route, wrapping round, so routing is never a hunt */
+    nextUnrouted: 'Next unrouted ({n})',
+    allRouted: 'Every item has a route',
 
     copyFromLabel: 'Copy a route from',
     copyFromChoose: 'Choose an item…',
@@ -1922,6 +1938,21 @@ function confirmBar(kind, id, wide) {
 /* how many item chips a step card shows before the rest go behind the picker */
 const STEP_CHIPS = 12;
 
+/* What was just added. Entries go on the end of a list that may be hundreds
+   long, with the box you typed into at the top — so on the next draw they are
+   marked, and the last of them is scrolled into view inside its own list.
+   Without it, adding to a big runsheet is typing into a void. */
+let flash = new Set();
+function noteAdded(ids) {
+  flash = new Set([].concat(ids));
+}
+/* the freshly added rows in one list, brought into view where they landed */
+function revealAdded(sel) {
+  const box = $(sel);
+  const fresh = $$(sel + ' .is-new');
+  if (box && fresh.length) revealRow(box, fresh[fresh.length - 1]);
+}
+
 function renderDefine() {
   /* likewise: an inline rename commits and redraws through here alone, so
      without this a renamed item was lost on closing the tab */
@@ -1952,7 +1983,7 @@ function renderDefine() {
     /* Attaching from this end saves walking the step cards one at a time. The
        count doubles as the readout of where this item already sits. */
     const on = onSteps[it.id] || 0;
-    return '<li class="row">' +
+    return '<li class="row' + (flash.has(it.id) ? ' is-new' : '') + '">' +
       '<button class="rowtext" data-edit-item="' + it.id + '" title="' + esc(C.renameTip) + '">' +
         '<span class="row__code">' + esc(it.code) + '</span>' +
         '<span class="row__name">' + esc(it.name) + '</span>' +
@@ -1978,7 +2009,7 @@ function renderDefine() {
         editActions() +
       '</li>';
     }
-    return '<li class="row">' +
+    return '<li class="row' + (flash.has(w.id) ? ' is-new' : '') + '">' +
       '<span class="row__ord">' + String(i + 1).padStart(2, '0') + '</span>' +
       '<button class="rowtext" data-edit-work="' + w.id + '" title="' + esc(C.renameTip) + '">' +
         '<span class="row__name" style="color:var(--ink);font-weight:600">' + esc(w.name) + '</span>' +
@@ -2036,6 +2067,7 @@ function renderDefine() {
     /* Not draggable while its name is being edited, so selecting text in the
        field cannot start a drag instead. */
     return '<div class="stepcard' + (confirming('step', st.id) ? ' stepcard--danger' : '') +
+      (flash.has(st.id) ? ' is-new' : '') +
       '" data-step-id="' + st.id + '"' + (editing('step', st.id) ? '' : ' draggable="true"') + '>' +
       (confirming('step', st.id) ? confirmBar('step', st.id, true) : '') + head +
       '<div class="eyebrow" style="margin-bottom:5px">' + esc(C.stepItemsLabel) + '</div>' +
@@ -2049,6 +2081,13 @@ function renderDefine() {
   if (ed) {
     const first = $('#view-define [data-edit-code], #view-define [data-edit-name]');
     if (first) { first.focus(); first.select(); }
+  }
+
+  /* Show what was just added, in whichever list it landed in, then forget it —
+     the mark is for one draw only. */
+  if (flash.size) {
+    ['#list-items', '#list-works', '#list-steps'].forEach(revealAdded);
+    flash = new Set();
   }
 }
 
@@ -2106,6 +2145,9 @@ function renderRoute() {
   const picked = state.items.filter(i => state.picked[i.id]);
   const allPicked = picked.length === state.items.length;
   const ticked = prog(f.id);
+  /* how much of the job still has no route — what routing a few hundred parts
+     is actually working through */
+  const bare = state.items.filter(i => !routeOf(i.id).length);
 
   const chain = id => {
     const r = routeOf(id);
@@ -2138,6 +2180,13 @@ function renderRoute() {
       '<span class="row__spacer"></span>' +
       (picked.length ? '<button class="btn btn--sm" id="btn-apply-picked">' +
         esc(t(C.copyToSelected, { n: picked.length })) + '</button>' : '') +
+      /* The way down a long list of parts without hunting for the next one —
+         and, once there is nowhere left to go, that said plainly rather than
+         the button just disappearing. */
+      (bare.length
+        ? '<button class="btn btn--sm btn--solid" id="btn-next-bare">' +
+            esc(t(C.nextUnrouted, { n: bare.length })) + '</button>'
+        : '<span class="row__ops">' + esc(C.allRouted) + '</span>') +
       (route.length ? '<button class="btn btn--sm btn--ghost" id="btn-clear-route">' +
         esc(C.clearRoute) + '</button>' : '') +
     '</div><div class="panel__body">';
@@ -2182,7 +2231,6 @@ function renderRoute() {
   h += '</div></div></div>';
 
   /* a quiet tally of what is sitting idle — neither of these is a problem */
-  const bare = state.items.filter(i => !routeOf(i.id).length);
   const used = new Set();
   state.items.forEach(i => routeOf(i.id).forEach(w => used.add(w)));
   const spare = state.works.filter(w => !used.has(w.id));
@@ -2272,6 +2320,19 @@ function refitLedger(id, next, n) {
     });
   });
   state.ledger = state.ledger.filter(e => e.ops.length);
+}
+
+/* Focus the next item still without a route, looking forward from where you
+   are and wrapping round — so pressing it repeatedly walks the whole job once
+   rather than sticking at the first gap. Leaves the focus alone when there is
+   nowhere left to go. */
+function focusNextBare() {
+  const n = state.items.length;
+  const at = state.items.findIndex(i => i.id === state.focus);
+  for (let k = 1; k <= n; k++) {
+    const cand = state.items[(at + k + n) % n];
+    if (cand && !routeOf(cand.id).length) { state.focus = cand.id; return; }
+  }
 }
 
 /* how loudly to mention it when an edit puts work back on the list */
@@ -2953,15 +3014,20 @@ $('#tabs').addEventListener('click', e => {
 });
 
 /* -- define: items -- */
+/* returns the ids added, so they can be shown where they landed */
 function addFromLines(raw) {
-  let n = 0;
+  const added = [];
   raw.split('\n').map(l => l.trim()).filter(Boolean).forEach(l => {
     const parts = l.split(/[,\t]|\s-\s/);
     const code = (parts[0] || '').trim();
     const name = parts.slice(1).join(', ').trim();
-    if (code) { state.items.push({ id: uid('it'), code: code, name: name }); n++; }
+    if (code) {
+      const it = { id: uid('it'), code: code, name: name };
+      state.items.push(it);
+      added.push(it.id);
+    }
   });
-  return n;
+  return added;
 }
 function addItems() {
   const codeEl = $('#in-item-code'), nameEl = $('#in-item-name');
@@ -2969,7 +3035,9 @@ function addItems() {
   const code = codeEl.value.trim() || raw.split(/\s+/)[0] || '';
   if (!code) { toast(COPY.define.itemNeedsCode); return; }
   const name = codeEl.value.trim() ? raw : raw.split(/\s+/).slice(1).join(' ');
-  state.items.push({ id: uid('it'), code: code, name: name });
+  const it = { id: uid('it'), code: code, name: name };
+  state.items.push(it);
+  noteAdded(it.id);
   codeEl.value = ''; nameEl.value = ''; codeEl.focus();
   render();
 }
@@ -2978,20 +3046,28 @@ function pasteItems(e) {
   const txt = ((e.clipboardData || window.clipboardData) || { getData: () => '' }).getData('text');
   if (!txt || txt.indexOf('\n') < 0) return;
   e.preventDefault();
-  const n = addFromLines(txt);
+  const added = addFromLines(txt);
+  noteAdded(added);
   $('#in-item-code').value = ''; $('#in-item-name').value = '';
   render();
-  toast(n ? tp(n, COPY.paste.items_one, COPY.paste.items_many) : COPY.paste.noCodes);
+  toast(added.length
+    ? tp(added.length, COPY.paste.items_one, COPY.paste.items_many)
+    : COPY.paste.noCodes);
 }
 function pasteList(e, kind) {
   const txt = ((e.clipboardData || window.clipboardData) || { getData: () => '' }).getData('text');
   if (!txt || txt.indexOf('\n') < 0) return;
   e.preventDefault();
   const lines = txt.split('\n').map(l => l.trim()).filter(Boolean);
+  const added = [];
   lines.forEach(l => {
-    if (kind === 'work') state.works.push({ id: uid('wk'), name: l });
-    else state.steps.push({ id: uid('st'), name: l, itemIds: [], stepIds: [] });
+    const row = kind === 'work'
+      ? { id: uid('wk'), name: l }
+      : { id: uid('st'), name: l, itemIds: [], stepIds: [] };
+    (kind === 'work' ? state.works : state.steps).push(row);
+    added.push(row.id);
   });
+  noteAdded(added);
   e.target.value = '';
   render();
   toast(lines.length
@@ -3013,7 +3089,9 @@ $('#in-work-name').addEventListener('keydown', e => { if (e.key === 'Enter') add
 function addWork() {
   const el = $('#in-work-name'), v = el.value.trim();
   if (!v) return;
-  state.works.push({ id: uid('wk'), name: v });
+  const w = { id: uid('wk'), name: v };
+  state.works.push(w);
+  noteAdded(w.id);
   el.value = ''; el.focus(); render();
 }
 
@@ -3022,7 +3100,9 @@ $('#in-step-name').addEventListener('keydown', e => { if (e.key === 'Enter') add
 function addStep() {
   const el = $('#in-step-name'), v = el.value.trim();
   if (!v) return;
-  state.steps.push({ id: uid('st'), name: v, itemIds: [], stepIds: [] });
+  const st = { id: uid('st'), name: v, itemIds: [], stepIds: [] };
+  state.steps.push(st);
+  noteAdded(st.id);
   el.value = ''; el.focus(); render();
 }
 
@@ -3186,6 +3266,10 @@ $('#view-route').addEventListener('click', e => {
     if (repeat) toast(t(COPY.route.repeatedOp, { name: workName(w) }));
     return;
   }
+  if (e.target.id === 'btn-next-bare') {
+    focusNextBare();
+    return renderRoute();
+  }
   if (e.target.id === 'btn-clear-route') {
     noteReopened(setRoute(f, []), item(f).code);
     return renderRoute();
@@ -3224,6 +3308,23 @@ $('#view-route').addEventListener('input', e => {
   state.workFilter = e.target.value;
   const pal = $('#work-palette');
   if (pal) pal.innerHTML = paletteHTML(routeOf(state.focus));
+});
+
+/* Enter in the filter adds whatever it has narrowed to, so a route can be
+   typed out — "pow", Enter, "cut", Enter — without reaching for the mouse. */
+$('#view-route').addEventListener('keydown', e => {
+  if (e.target.id !== 'work-filter' || e.key !== 'Enter') return;
+  e.preventDefault();
+  const q = (state.workFilter || '').trim().toLowerCase();
+  const hit = state.works.filter(w => !q || w.name.toLowerCase().indexOf(q) > -1)[0];
+  if (!hit) return;
+  const r = routeOf(state.focus).slice();
+  r.push(hit.id);
+  setRoute(state.focus, r);
+  state.workFilter = '';
+  renderRoute();
+  const box = $('#work-filter');
+  if (box) box.focus();
 });
 
 /* drag to reorder; the arrows do the same job for keyboards and touch */
