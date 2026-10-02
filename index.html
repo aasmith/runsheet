@@ -631,6 +631,49 @@ td.mx__cell{width:62px;background:var(--white)}
 .pill--step::before{content:'▣';margin-right:4px;opacity:.7}
 .pill--step[data-done="1"]{background:var(--blue);border-color:var(--blue);border-style:solid;color:var(--white)}
 
+/* ---------- the graph ---------- */
+.gwrap{
+  position:relative;overflow:hidden;height:66vh;min-height:340px;
+  background:var(--panel);border:1px solid var(--rule);border-radius:3px;
+  box-shadow:3px 3px 0 rgba(20,24,27,.05);cursor:grab;touch-action:none;
+  background-image:
+    linear-gradient(rgba(20,24,27,.05) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(20,24,27,.05) 1px,transparent 1px);
+  background-size:22px 22px;
+}
+.gwrap:active{cursor:grabbing}
+.gcanvas{position:absolute;top:0;left:0;transform-origin:0 0}
+.gedges{position:absolute;top:0;left:0;overflow:visible;pointer-events:none}
+.gedges path{fill:none;stroke:var(--rule-2);stroke-width:1.5}
+.gedges path[data-dim="1"]{stroke:var(--rule);opacity:.4}
+.gnode{
+  position:absolute;top:0;background:var(--white);
+  border:1.5px solid var(--rule-2);border-radius:3px;padding:9px 10px;
+  cursor:pointer;box-shadow:2px 2px 0 rgba(20,24,27,.06);
+  transition:border-color .12s ease,opacity .12s ease;
+}
+.gnode:hover{border-color:var(--ink)}
+.gnode[data-ready="1"]{border-color:var(--go);background:var(--go-tint)}
+.gnode[data-sel="1"]{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-tint),2px 2px 0 rgba(20,24,27,.10)}
+.gnode[data-dim="1"]{opacity:.3}
+.gnode__name{font-weight:700;font-size:13px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gnode__meta{
+  font-family:var(--mono);font-size:10px;color:var(--ink-3);margin-top:3px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.gnode .bar{margin-top:7px}
+.gnode__when{
+  font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--ink-2);margin-top:5px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.gnode[data-ready="1"] .gnode__when{color:var(--go)}
+.gnode__parts{display:flex;flex-wrap:wrap;gap:3px;margin-top:7px}
+.gloose{
+  margin-top:14px;border:1.5px dashed var(--rule-2);border-radius:3px;
+  padding:11px 13px;background:var(--panel);
+}
+
 /* ---------- misc ---------- */
 .notice{
   display:flex;gap:9px;align-items:flex-start;background:var(--hold-tint);
@@ -711,6 +754,8 @@ details.fold > summary:hover{color:var(--ink)}
     <button class="tab" role="tab" data-tab="define" aria-selected="true"><span class="tab__n">01</span><span data-copy="chrome.tabDefine"></span></button>
     <button class="tab" role="tab" data-tab="route" aria-selected="false"><span class="tab__n">02</span><span data-copy="chrome.tabRoute"></span></button>
     <button class="tab" role="tab" data-tab="run" aria-selected="false"><span class="tab__n">03</span><span data-copy="chrome.tabRun"></span></button>
+    <!-- no stage number: a view of the job, not a step through it -->
+    <button class="tab" role="tab" data-tab="graph" aria-selected="false"><span data-copy="chrome.tabGraph"></span></button>
   </nav>
   <div class="jobbar" id="jobbar">
     <button class="btn btn--ghost btn--sm" id="btn-sheets"><span aria-hidden="true">▤</span> <span data-copy="chrome.libraryButton"></span></button>
@@ -799,6 +844,11 @@ details.fold > summary:hover{color:var(--ink)}
   <section class="view" id="view-run" role="tabpanel">
     <div id="run-body"></div>
   </section>
+
+  <!-- =============== GRAPH =============== -->
+  <section class="view" id="view-graph" role="tabpanel">
+    <div id="graph-body"></div>
+  </section>
 </main>
 
 <div class="modal" id="jsonbox" hidden>
@@ -879,7 +929,8 @@ const COPY = {
     openFile: 'Open file',
     tabDefine: 'Define',
     tabRoute: 'Route',
-    tabRun: 'Run'
+    tabRun: 'Run',
+    tabGraph: 'Graph'
   },
 
   /* --- stage 01, Define -------------------------------------------------- */
@@ -1156,6 +1207,43 @@ const COPY = {
     legendWaiting: 'waiting',
     legendHint: 'click to tick work off, or to put it back',
     stripNoRoute: 'No route — counts as finished'
+  },
+
+  /* --- the graph, a view of how the assemblies fit together -------------- */
+  graph: {
+    eyebrow: 'Structure',
+    heading: 'What feeds what.',
+    intro: 'Each assembly sits above the sub-assemblies it consumes. Click one to trace it up and down the job; click the background to let go.',
+
+    nothingTitle: 'Nothing to draw yet',
+    nothingBody: 'Steps are what this shows. Add a few on Define, and put one inside another to build the tree up.',
+
+    showParts: 'Show parts',
+    fit: 'Fit',
+    zoomIn: 'Zoom in',
+    zoomOut: 'Zoom out',
+    zoomLevel: '{n}%',
+
+    /* on a node */
+    nodeClear: '✓ Clear to assemble',
+    nodeWaiting: '{done} / {total} operations done',
+    nodeEmpty: 'Nothing attached',
+    nodeItems_one: '{n} part',
+    nodeItems_many: '{n} parts',
+    nodeSubs_one: 'feeds on {n} sub-assembly',
+    nodeSubs_many: 'feeds on {n} sub-assemblies',
+    nodeSeparator: ' · ',
+
+    looseHeading: 'Not in any step',
+    looseBody: 'These parts feed no assembly.',
+
+    /* the line under the controls once something is picked out */
+    tracing: 'Tracing {name} — {n} in the chain',
+    traceClear: 'Clear',
+    /* a step can sit inside more than one assembly, so this is a graph rather
+       than a tree; the count says how many places it is used */
+    usedIn_one: 'used in {n} place',
+    usedIn_many: 'used in {n} places'
   },
 
   /* --- the library ------------------------------------------------------- */
@@ -2717,6 +2805,296 @@ function renderRun() {
 let foldOpen = false;
 
 /* ============================================================
+   The graph — what feeds what
+
+   Steps form a directed acyclic graph, not a tree: a step lists the
+   sub-assemblies it consumes, and one sub-assembly can feed several parents.
+   So it is laid out in rows, each step sitting one row below the lowest parent
+   that uses it, which guarantees every edge points downward. Within a row the
+   order is settled by sliding each node towards the average position of what it
+   joins, alternating which side is looked at — a handful of passes takes most
+   of the crossings out at this size, and it is stable, which a force layout
+   would not be.
+
+   Nodes are HTML so they can use the app's own chips and bars, laid over an SVG
+   sheet that carries the edges. Both sit in one transformed box, so panning and
+   zooming is a single CSS transform rather than a redraw.
+   ============================================================ */
+const GNODE_W = 184;   /* every node the same width, so the rows line up */
+const GGAP_X = 24;
+const GGAP_Y = 52;
+
+function graphModel() {
+  const steps = state.steps;
+  const has = new Set(steps.map(s => s.id));
+  const kids = new Map(steps.map(s => [s.id, subSteps(s).filter(x => has.has(x))]));
+  const parents = new Map(steps.map(s => [s.id, []]));
+  kids.forEach((ks, id) => ks.forEach(k => parents.get(k).push(id)));
+
+  /* One row below the deepest parent. Guarded rather than trusting the data:
+     wouldLoop stops a cycle being built here, but a file from elsewhere could
+     carry one, and a cycle must not hang the page. */
+  const row = new Map(), busy = new Set();
+  const rowOf = id => {
+    if (row.has(id)) return row.get(id);
+    if (busy.has(id)) return 0;               /* a cycle — break it here */
+    busy.add(id);
+    let r = 0;
+    (parents.get(id) || []).forEach(p => { r = Math.max(r, rowOf(p) + 1); });
+    busy.delete(id);
+    row.set(id, r);
+    return r;
+  };
+  steps.forEach(s => rowOf(s.id));
+
+  const rows = [];
+  steps.forEach(s => {
+    const r = row.get(s.id) || 0;
+    (rows[r] = rows[r] || []).push(s.id);
+  });
+  for (let r = 0; r < rows.length; r++) rows[r] = rows[r] || [];
+
+  /* fewer crossings, by repeated averaging */
+  const pos = new Map();
+  rows.forEach(list => list.forEach((id, i) => pos.set(id, i)));
+  for (let sweep = 0; sweep < 6; sweep++) {
+    const downward = sweep % 2 === 0;
+    for (let n = 0; n < rows.length; n++) {
+      const list = rows[downward ? n : rows.length - 1 - n];
+      const near = id => (downward ? parents.get(id) : kids.get(id)) || [];
+      const key = new Map(list.map(id => {
+        const ns = near(id).filter(x => pos.has(x));
+        return [id, ns.length ? ns.reduce((a, x) => a + pos.get(x), 0) / ns.length : pos.get(id)];
+      }));
+      list.sort((a, x) => key.get(a) - key.get(x) || pos.get(a) - pos.get(x));
+      list.forEach((id, i) => pos.set(id, i));
+    }
+  }
+
+  /* each row centred on the widest one */
+  const widest = rows.reduce((m, l) => Math.max(m, l.length), 0);
+  const width = Math.max(GNODE_W, widest * GNODE_W + (widest - 1) * GGAP_X);
+  const place = new Map();
+  rows.forEach((list, r) => {
+    const w = list.length * GNODE_W + (list.length - 1) * GGAP_X;
+    const left = (width - w) / 2;
+    list.forEach((id, i) => place.set(id, { x: left + i * (GNODE_W + GGAP_X), row: r }));
+  });
+  return { rows: rows, place: place, kids: kids, parents: parents, width: width };
+}
+
+/* Everything this step reaches, both ways: what it is built from, and what is
+   built from it. Includes the step itself, so the set is the whole chain.
+   Each walk is seeded with the neighbours rather than the step, or the second
+   would stop dead on a node already in the set. */
+function graphTrace(g, id) {
+  const out = new Set();
+  if (!id || !g.place.has(id)) return out;
+  out.add(id);
+  const walk = edges => {
+    const stack = (edges.get(id) || []).slice();
+    while (stack.length) {
+      const at = stack.pop();
+      if (out.has(at)) continue;
+      out.add(at);
+      (edges.get(at) || []).forEach(n => stack.push(n));
+    }
+  };
+  walk(g.kids);       /* down, into what it is assembled from */
+  walk(g.parents);    /* up, into what it feeds */
+  return out;
+}
+
+let gview = { x: 0, y: 0, k: 1 };
+let gfitted = false;
+let gparts = false;
+let gsel = null;
+
+function renderGraph() {
+  persist();
+  const C = COPY.graph;
+  const host = $('#graph-body');
+  const head = '<div class="viewhead"><div class="eyebrow">' + esc(C.eyebrow) + '</div>' +
+    '<h1>' + esc(C.heading) + '</h1><p>' + esc(C.intro) + '</p></div>';
+
+  if (!state.steps.length) {
+    host.innerHTML = head + emptyBox(C.nothingTitle, C.nothingBody);
+    return;
+  }
+
+  const g = graphModel();
+  const lit = gsel ? graphTrace(g, gsel) : null;
+  const inTrace = id => !lit || id === gsel || lit.has(id);
+
+  let h = head;
+
+  /* controls */
+  h += '<div class="toolbar">' +
+    '<button class="chip" data-graph-parts aria-pressed="' + gparts + '">' +
+      esc(C.showParts) + '</button>' +
+    '<span class="row__spacer"></span>' +
+    (gsel && step(gsel)
+      ? '<span class="row__ops">' + esc(t(C.tracing, { name: step(gsel).name, n: lit.size })) + '</span>' +
+        '<button class="btn btn--sm btn--ghost" data-graph-clear>' + esc(C.traceClear) + '</button>'
+      : '') +
+    '<button class="icon-btn" data-graph-zoom="-1" title="' + esc(C.zoomOut) + '" aria-label="' + esc(C.zoomOut) + '">−</button>' +
+    '<span class="row__ops" id="graph-zoom">' + esc(t(C.zoomLevel, { n: Math.round(gview.k * 100) })) + '</span>' +
+    '<button class="icon-btn" data-graph-zoom="1" title="' + esc(C.zoomIn) + '" aria-label="' + esc(C.zoomIn) + '">+</button>' +
+    '<button class="btn btn--sm btn--ghost" data-graph-fit>' + esc(C.fit) + '</button>' +
+  '</div>';
+
+  /* the nodes, positioned across but not yet down — the rows are spaced once
+     their real heights are known */
+  const nodes = state.steps.filter(s => g.place.has(s.id)).map(s => {
+    const at = g.place.get(s.id);
+    const ids = Array.from(stepItemSet(s.id));
+    const tot = ids.reduce((n, id) => n + routeOf(id).length, 0);
+    const dn = ids.reduce((n, id) => n + prog(id), 0);
+    const ready = stepDone(s.id);
+    const own = ownItems(s).filter(id => item(id));
+    const subs = (g.kids.get(s.id) || []).length;
+    const used = (g.parents.get(s.id) || []).length;
+
+    const meta = [];
+    if (own.length) meta.push(tp(own.length, C.nodeItems_one, C.nodeItems_many));
+    if (subs) meta.push(tp(subs, C.nodeSubs_one, C.nodeSubs_many));
+    if (used > 1) meta.push(tp(used, C.usedIn_one, C.usedIn_many));
+
+    return '<div class="gnode" data-gnode="' + s.id + '" data-ready="' + (ready ? 1 : 0) + '"' +
+      (s.id === gsel ? ' data-sel="1"' : '') + (inTrace(s.id) ? '' : ' data-dim="1"') +
+      ' style="left:' + Math.round(at.x) + 'px;width:' + GNODE_W + 'px">' +
+      '<div class="gnode__name" title="' + esc(s.name) + '">' + esc(s.name) + '</div>' +
+      '<div class="gnode__meta">' + esc(meta.join(C.nodeSeparator) || C.nodeEmpty) + '</div>' +
+      (tot
+        ? '<div class="bar"><div class="bar__fill" style="width:' +
+            Math.round(dn / tot * 100) + '%"></div></div>'
+        : '') +
+      '<div class="gnode__when">' + esc(ready ? C.nodeClear
+        : t(C.nodeWaiting, { done: dn, total: tot })) + '</div>' +
+      (gparts && own.length
+        ? '<div class="gnode__parts">' + own.map(id =>
+            '<span class="pill" data-done="' + (itemDone(id) ? 1 : 0) + '">' +
+            esc(item(id).code) + '</span>').join('') + '</div>'
+        : '') +
+    '</div>';
+  }).join('');
+
+  h += '<div class="gwrap" id="graph-wrap">' +
+      '<div class="gcanvas" id="graph-canvas">' +
+        '<svg class="gedges" id="graph-edges" aria-hidden="true"></svg>' +
+        nodes +
+      '</div>' +
+    '</div>';
+
+  /* parts on no assembly at all — outside the graph, because that is what they
+     are: unconnected */
+  const loose = state.items.filter(i => !state.steps.some(s => ownItems(s).indexOf(i.id) > -1));
+  if (gparts && loose.length) {
+    h += '<div class="gloose"><div class="eyebrow">' + esc(C.looseHeading) + '</div>' +
+      '<p class="hint" style="margin:2px 0 7px">' + esc(C.looseBody) + '</p>' +
+      '<div class="stepitem__items">' + loose.map(i =>
+        '<span class="pill" data-done="' + (itemDone(i.id) ? 1 : 0) + '">' +
+        esc(i.code) + '</span>').join('') + '</div></div>';
+  }
+
+  host.innerHTML = h;
+  layoutGraph(g, lit);
+}
+
+/* Nodes carry whatever they hold, so their heights vary. They are measured once
+   in place, the rows spaced to the tallest in each, and only then are the edges
+   drawn — so a line always meets the box it points at, rather than an estimate
+   of where the box might be. */
+function layoutGraph(g, lit) {
+  const canvas = $('#graph-canvas'), wrap = $('#graph-wrap');
+  if (!canvas || !wrap) return;
+  const nodeAt = id => canvas.querySelector('[data-gnode="' + id + '"]');
+
+  const size = new Map(), rowTop = [];
+  let y = 0;
+  g.rows.forEach((list, r) => {
+    let tall = 0;
+    list.forEach(id => {
+      const el = nodeAt(id);
+      const hh = (el && el.offsetHeight) || 92;
+      size.set(id, hh);
+      if (hh > tall) tall = hh;
+    });
+    rowTop[r] = y;
+    y += tall + GGAP_Y;
+  });
+  const height = Math.max(0, y - GGAP_Y);
+
+  g.rows.forEach((list, r) => list.forEach(id => {
+    const el = nodeAt(id);
+    if (el) el.style.top = Math.round(rowTop[r]) + 'px';
+  }));
+
+  /* from the bottom of a parent to the top of each sub-assembly it consumes */
+  const seg = [];
+  g.kids.forEach((ks, id) => {
+    const from = g.place.get(id);
+    if (!from) return;
+    const x1 = Math.round(from.x + GNODE_W / 2), y1 = Math.round(rowTop[from.row] + size.get(id));
+    ks.forEach(k => {
+      const to = g.place.get(k);
+      if (!to) return;
+      const x2 = Math.round(to.x + GNODE_W / 2), y2 = Math.round(rowTop[to.row]);
+      const bend = Math.max(16, Math.round((y2 - y1) / 2));
+      const on = !lit || ((lit.has(id) || id === gsel) && (lit.has(k) || k === gsel));
+      seg.push('<path d="M' + x1 + ' ' + y1 + ' C' + x1 + ' ' + (y1 + bend) +
+        ' ' + x2 + ' ' + (y2 - bend) + ' ' + x2 + ' ' + y2 + '"' +
+        (on ? '' : ' data-dim="1"') + '/>');
+    });
+  });
+
+  const svg = $('#graph-edges');
+  if (svg) {
+    svg.setAttribute('width', Math.ceil(g.width));
+    svg.setAttribute('height', Math.ceil(height));
+    svg.innerHTML = seg.join('');
+  }
+  canvas.style.width = Math.ceil(g.width) + 'px';
+  canvas.style.height = Math.ceil(height) + 'px';
+
+  if (!gfitted) { fitGraph(g.width, height); gfitted = true; }
+  applyGraphView();
+}
+
+/* the whole job in view, never blown up past life size */
+function fitGraph(w, h) {
+  const wrap = $('#graph-wrap');
+  if (!wrap) return;
+  const vw = wrap.clientWidth || 900, vh = wrap.clientHeight || 520, pad = 26;
+  const k = Math.min(1, (vw - pad * 2) / Math.max(1, w), (vh - pad * 2) / Math.max(1, h));
+  gview.k = Math.max(0.2, k);
+  gview.x = Math.max(pad, (vw - w * gview.k) / 2);
+  gview.y = pad;
+}
+function applyGraphView() {
+  const canvas = $('#graph-canvas');
+  if (canvas) {
+    canvas.style.transform = 'translate(' + Math.round(gview.x) + 'px,' +
+      Math.round(gview.y) + 'px) scale(' + gview.k.toFixed(3) + ')';
+  }
+  const z = $('#graph-zoom');
+  if (z) z.textContent = t(COPY.graph.zoomLevel, { n: Math.round(gview.k * 100) });
+}
+/* zoom about a point, so whatever is under the pointer stays under it */
+function zoomGraph(mult, px, py) {
+  const wrap = $('#graph-wrap');
+  if (!wrap) return;
+  const r = wrap.getBoundingClientRect();
+  const cx = px === undefined ? r.width / 2 : px;
+  const cy = py === undefined ? r.height / 2 : py;
+  const k0 = gview.k, k = Math.max(0.2, Math.min(2.5, k0 * mult));
+  gview.x = cx - (cx - gview.x) * (k / k0);
+  gview.y = cy - (cy - gview.y) * (k / k0);
+  gview.k = k;
+  applyGraphView();
+}
+
+/* ============================================================
    The library — runsheets kept in this browser's local storage.
    One key holds every sheet; the open one is written back whenever
    something about it actually changes.
@@ -2755,6 +3133,7 @@ function applyData(d) {
   state.priorityItems = d.priorityItems || [];
   state.picked = {}; state.focus = null; state.edit = null; state.confirm = null; state.workFilter = '';
   pinned = null; planGain = 0;   /* another sheet's plan is not this one's */
+  gsel = null; gfitted = false;  /* nor its graph, nor where it was panned to */
 }
 
 function loadStore() {
@@ -2998,11 +3377,14 @@ function render() {
   }
   if (state.tab === 'route')  renderRoute();
   if (state.tab === 'run')    renderRun();
+  if (state.tab === 'graph')  renderGraph();
   if (state.tab === 'sheets') renderSheets();
 }
 function go(tab) {
   if (tab !== 'sheets' && !currentSheet()) tab = 'sheets';
   if (tab !== 'sheets') state.stage = tab;
+  /* arriving at the graph, put the whole job in view again */
+  if (tab === 'graph') gfitted = false;
   state.tab = tab; state.confirm = null; state.edit = null; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 
 /* ============================================================
@@ -3423,6 +3805,55 @@ $('#view-run').addEventListener('click', e => {
     return;
   }
 });
+/* -- graph -- */
+let gpan = null, gpanned = false;
+$('#view-graph').addEventListener('click', e => {
+  /* a drag that happened to end on something is not a click on it */
+  if (gpanned) { gpanned = false; return; }
+  if (e.target.closest('[data-graph-parts]')) { gparts = !gparts; return renderGraph(); }
+  if (e.target.closest('[data-graph-clear]')) { gsel = null; return renderGraph(); }
+  if (e.target.closest('[data-graph-fit]')) { gfitted = false; return renderGraph(); }
+  const z = e.target.closest('[data-graph-zoom]');
+  if (z) return zoomGraph(Number(z.dataset.graphZoom) > 0 ? 1.2 : 1 / 1.2);
+  const node = e.target.closest('[data-gnode]');
+  if (node) {
+    gsel = gsel === node.dataset.gnode ? null : node.dataset.gnode;
+    return renderGraph();
+  }
+  /* the background: let go of whatever was being traced */
+  if (e.target.closest('#graph-wrap') && gsel) { gsel = null; return renderGraph(); }
+});
+$('#view-graph').addEventListener('pointerdown', e => {
+  if (e.target.closest('[data-gnode]') || e.target.closest('button')) return;
+  const wrap = e.target.closest('#graph-wrap');
+  if (!wrap) return;
+  gpan = { x: e.clientX, y: e.clientY, ox: gview.x, oy: gview.y, moved: false };
+  try { wrap.setPointerCapture(e.pointerId); } catch (err) {}
+});
+$('#view-graph').addEventListener('pointermove', e => {
+  if (!gpan) return;
+  const dx = e.clientX - gpan.x, dy = e.clientY - gpan.y;
+  if (Math.abs(dx) + Math.abs(dy) > 3) gpan.moved = true;
+  gview.x = gpan.ox + dx;
+  gview.y = gpan.oy + dy;
+  applyGraphView();
+});
+$('#view-graph').addEventListener('pointerup', () => {
+  gpanned = !!(gpan && gpan.moved);
+  gpan = null;
+});
+/* Zoom on ctrl/meta + wheel only. A trackpad pinch arrives as exactly that, so
+   pinching works as expected, while a plain wheel still scrolls the page —
+   swallowing it would trap the reader inside a canvas most of a screen tall. */
+$('#view-graph').addEventListener('wheel', e => {
+  if (!e.ctrlKey && !e.metaKey) return;
+  const wrap = e.target.closest && e.target.closest('#graph-wrap');
+  if (!wrap) return;
+  e.preventDefault();
+  const r = wrap.getBoundingClientRect();
+  zoomGraph(e.deltaY < 0 ? 1.1 : 1 / 1.1, e.clientX - r.left, e.clientY - r.top);
+}, { passive: false });
+
 $('#view-run').addEventListener('toggle', e => {
   if (e.target.id === 'fold-matrix') foldOpen = e.target.open;
 }, true);
