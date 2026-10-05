@@ -251,6 +251,9 @@ main{max-width:1320px;margin:0 auto;padding:24px 20px 90px}
 .stepcard--danger{border-color:var(--stop)}
 .danger{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
 .danger--card{background:var(--stop-tint);border:1px solid var(--stop);border-radius:2px;padding:9px 10px;margin-bottom:9px}
+/* the same bar, for a question where nothing is actually lost by saying yes */
+.danger--mild{background:var(--hold-tint);border-color:var(--hold)}
+.danger--mild .danger__msg{color:#5E3A02}
 .danger__msg{flex:1 1 100%;font-size:12.5px;line-height:1.45;color:#5C2018;margin-bottom:7px}
 .danger__msg b{font-family:var(--mono);font-weight:700}
 .row--edit{gap:6px;padding:5px 6px 5px 8px;background:var(--blue-tint);border-color:var(--blue)}
@@ -310,9 +313,20 @@ main{max-width:1320px;margin:0 auto;padding:24px 20px 90px}
   color:var(--ink-2);cursor:pointer;background:var(--panel-2);
 }
 .itemlist{list-style:none;margin:0;padding:0;max-height:62vh;overflow-y:auto}
-.ritem{display:flex;align-items:center;gap:2px;border-bottom:1px solid var(--rule);background:var(--panel)}
+/* not selectable as text: shift-clicking a run would otherwise drag a blue
+   text highlight across the rows behind the ticks */
+.ritem{
+  display:flex;align-items:center;gap:2px;border-bottom:1px solid var(--rule);
+  background:var(--panel);user-select:none;-webkit-user-select:none;
+}
 .ritem:last-child{border-bottom:0}
-.ritem > input{margin:0 0 0 12px;flex:none}
+/* a generous target: ticking an item should not need taking aim at a 13px box */
+.ritem__pick{
+  display:flex;align-items:center;align-self:stretch;
+  padding:0 9px 0 12px;cursor:pointer;flex:none;
+}
+.ritem__pick:hover{background:var(--panel-2)}
+.ritem__pick > input{margin:0;flex:none;cursor:pointer}
 .ritem[aria-current="true"]{background:var(--white);box-shadow:inset 3px 0 0 var(--blue)}
 .ritem__btn{
   flex:1;min-width:0;text-align:left;background:none;border:0;cursor:pointer;
@@ -1058,7 +1072,7 @@ const COPY = {
   route: {
     eyebrow: 'Stage 02',
     heading: 'Give each item its route: the work it needs, in the order it needs it.',
-    intro: 'Pick an item on the left, build its route on the right. Drag operations to reorder, or copy a finished route onto as many items as you like.',
+    intro: 'Pick an item on the left, build its route on the right. Drag operations to reorder. To give several items the same route, tick them on the left — hold shift to take a whole run at once — then copy this route onto the lot.',
 
     nothingTitle: 'Nothing to route yet',
     needItems: 'Add items on Define first.',
@@ -1067,6 +1081,7 @@ const COPY = {
     itemsHeading: 'Items',
     selectAll: 'Select all',
     selected: '{n} selected',
+    selectAllTip: 'Select every item — or, with some ticked, clear them',
     noRouteYet: 'no route yet',
 
     /* Everything about one item lives on this page, so wherever an item is
@@ -1112,6 +1127,19 @@ const COPY = {
     reopenedBulk_many: '{n} ticked-off operations go back on the list',
     copiedTo_one: 'Route copied to {n} item',
     copiedTo_many: 'Route copied to {n} items',
+
+    /* the second click before a route lands on a whole selection. {extra} is
+       whatever of the two sentences below applies — both are consequences you
+       would not otherwise see coming */
+    warnCopy: "Copy <b>{name}</b>'s route onto {items}?{extra}",
+    warnCopyItems_one: '{n} item',
+    warnCopyItems_many: '{n} items',
+    warnCopyReplacing_one: ' {n} of them already has a route, which this replaces.',
+    warnCopyReplacing_many: ' {n} of them already have routes, which this replaces.',
+    warnCopyReopens_one: ' {n} ticked-off operation goes back on the list.',
+    warnCopyReopens_many: ' {n} ticked-off operations go back on the list.',
+    confirmCopy: 'Copy',
+    confirmCancel: 'Cancel',
 
     /* the quiet tally under the two panels */
     tallyCounts: '{ops} operations · {items} items · {works} work types',
@@ -2288,12 +2316,16 @@ function renderRoute() {
   h += '<div class="panel"><div class="panel__head"><h2>' + esc(C.itemsHeading) + '</h2>' +
       '<span class="panel__count">' + state.items.length + '</span></div>' +
     '<div class="panel__body" style="padding:0">' +
-      '<label class="selrow"><input type="checkbox" id="sel-all"' + (allPicked ? ' checked' : '') + '>' +
+      '<label class="selrow" title="' + esc(C.selectAllTip) + '">' +
+        '<input type="checkbox" id="sel-all"' + (allPicked ? ' checked' : '') + '>' +
         esc(picked.length ? t(C.selected, { n: picked.length }) : C.selectAll) + '</label>' +
       '<ul class="itemlist">' + state.items.map(it =>
         '<li class="ritem" aria-current="' + (it.id === f.id) + '">' +
-          '<input type="checkbox" data-pick="' + it.id + '"' + (state.picked[it.id] ? ' checked' : '') +
-            ' aria-label="' + esc(t(COPY.define.selectLabel, { name: it.code })) + '">' +
+          /* the whole left gutter ticks the box, not just the box itself */
+          '<label class="ritem__pick">' +
+            '<input type="checkbox" data-pick="' + it.id + '"' + (state.picked[it.id] ? ' checked' : '') +
+              ' aria-label="' + esc(t(COPY.define.selectLabel, { name: it.code })) + '">' +
+          '</label>' +
           '<button class="ritem__btn" data-focus="' + it.id + '">' +
             '<span class="ritem__code">' + esc(it.code) + '</span> ' +
             '<span class="ritem__nm">' + esc(it.name) + '</span>' +
@@ -2322,6 +2354,13 @@ function renderRoute() {
       (route.length ? '<button class="btn btn--sm btn--ghost" id="btn-clear-route">' +
         esc(C.clearRoute) + '</button>' : '') +
     '</div><div class="panel__body">';
+
+  /* the numbers are worked out afresh each draw, so adjusting the selection
+     under an open confirmation updates it rather than leaving it stale —
+     but emptying the selection takes it away, having nothing left to ask */
+  if (state.confirm && state.confirm.kind === 'copyroute' && picked.length) {
+    h += copyConfirmBar();
+  }
 
   /* the rest of what an item is: its description, and the assemblies it feeds */
   h += '<input class="field itemid__desc" id="item-desc" value="' + esc(f.name) +
@@ -2398,6 +2437,12 @@ function renderRoute() {
      to the top of a long list. */
   const list = keepingScroll('#route-body .itemlist', () => { host.innerHTML = h; });
 
+  /* Part-selected shows as the third state rather than as empty, so the tick
+     box reads as "some" and its click reads as "clear". Only settable from
+     script, never from markup. */
+  const all = $('#sel-all');
+  if (all) all.indeterminate = picked.length > 0 && !allPicked;
+
   /* The focused item may be somewhere else entirely — a tally chip at the foot
      of the page focuses one that could be far up the list, and arriving from the
      run page focuses one that has never been on screen. So make sure the row is
@@ -2429,14 +2474,17 @@ function paletteHTML(route) {
    behind an undone step. This rewrites the route and hands back whatever no
    longer counts as done, so it goes on the list again.
    Returns how many operations were reopened. */
-function setRoute(id, next) {
+/* How far into a new route the work already done still reaches, without a gap.
+   Pure, and the one piece of arithmetic both callers need: setRoute, to know
+   where to leave progress, and the confirmation before a bulk copy, to say what
+   would be handed back before anything is. */
+function keptPrefix(id, next) {
   const before = routeOf(id), doneCount = prog(id);
 
   /* what had actually been done on this item, as a bag of work types */
   const pool = new Map();
   for (let i = 0; i < doneCount; i++) pool.set(before[i], (pool.get(before[i]) || 0) + 1);
 
-  /* how far into the new route that bag reaches without a gap */
   let n = 0;
   while (n < next.length) {
     const left = pool.get(next[n]) || 0;
@@ -2444,7 +2492,12 @@ function setRoute(id, next) {
     pool.set(next[n], left - 1);
     n++;
   }
+  return n;
+}
 
+function setRoute(id, next) {
+  const doneCount = prog(id);
+  const n = keptPrefix(id, next);
   state.routes[id] = next;
   state.progress[id] = n;
   refitLedger(id, next, n);
@@ -2467,6 +2520,85 @@ function refitLedger(id, next, n) {
     });
   });
   state.ledger = state.ledger.filter(e => e.ops.length);
+}
+
+/* Ticking a run of items: shift takes everything between the last one touched
+   and this one, so a block of fifty is two clicks rather than fifty. */
+let pickAnchor = null;
+
+/* The header tick box. Anything ticked at all means this clears; only an empty
+   list selects everything. Going from "three ticked" to "all two hundred
+   ticked" is never what the click was for. */
+function toggleSelectAll() {
+  const any = state.items.some(i => state.picked[i.id]);
+  state.items.forEach(i => { state.picked[i.id] = !any; });
+  pickAnchor = null;
+}
+
+/* What a bulk copy would cost, worked out before any of it happens. Routes
+   already in place get overwritten and ticked-off work can roll back, and
+   neither is obvious from a button reading "copy to 40 selected". */
+/* The confirmation, weighted to the consequence: amber when nothing is lost,
+   red when routes are overwritten or finished work is handed back. */
+function copyConfirmBar() {
+  const C = COPY.route;
+  const p = copyPreview();
+  const heavy = p.replacing > 0 || p.reopened > 0;
+  const extra =
+    (p.replacing ? tp(p.replacing, C.warnCopyReplacing_one, C.warnCopyReplacing_many) : '') +
+    (p.reopened ? tp(p.reopened, C.warnCopyReopens_one, C.warnCopyReopens_many) : '');
+  return '<div class="danger danger--card' + (heavy ? '' : ' danger--mild') + '">' +
+    '<span class="danger__msg">' + t(C.warnCopy, {
+      name: esc((item(state.focus) || {}).code || ''),
+      items: tp(p.count, C.warnCopyItems_one, C.warnCopyItems_many),
+      extra: extra
+    }) + '</span>' +
+    '<span class="row__spacer"></span>' +
+    '<button class="btn btn--sm ' + (heavy ? 'btn--danger' : 'btn--solid') +
+      '" data-do-copy>' + esc(C.confirmCopy) + '</button>' +
+    '<button class="btn btn--sm btn--ghost" data-keep-copy>' + esc(C.confirmCancel) + '</button>' +
+  '</div>';
+}
+
+function copyPreview() {
+  const r = routeOf(state.focus);
+  const same = r.join('\u0000');
+  let count = 0, replacing = 0, reopened = 0;
+  state.items.forEach(i => {
+    if (!state.picked[i.id]) return;
+    count++;
+    const now = routeOf(i.id);
+    /* an item that already has this very route loses nothing */
+    if (now.length && now.join('\u0000') !== same) replacing++;
+    reopened += prog(i.id) - keptPrefix(i.id, r);
+  });
+  return { count: count, replacing: replacing, reopened: reopened };
+}
+
+/* The focused item's route onto everything ticked. The selection has done its
+   job by the end, so it is let go rather than left to be cleared by hand. */
+function applyRouteToPicked() {
+  const r = routeOf(state.focus).slice();
+  const targets = state.items.filter(i => state.picked[i.id]);
+  let reopened = 0;
+  targets.forEach(i => { reopened += setRoute(i.id, r.slice()); });
+  state.picked = {};
+  pickAnchor = null;
+  return { count: targets.length, reopened: reopened };
+}
+
+function pickRange(toId) {
+  const ids = state.items.map(i => i.id);
+  const b = ids.indexOf(toId);
+  if (b < 0) return;
+  const a = ids.indexOf(pickAnchor);
+  if (a < 0) { state.picked[toId] = true; }
+  else {
+    for (let i = Math.min(a, b); i <= Math.max(a, b); i++) state.picked[ids[i]] = true;
+  }
+  /* the anchor follows, so a second shift-click carries on from here rather
+     than re-reaching for the same starting point */
+  pickAnchor = toId;
 }
 
 /* Focus the next item still without a route, looking forward from where you
@@ -3685,8 +3817,22 @@ $('#view-define').addEventListener('dragend', () => {
 
 /* -- route -- */
 $('#view-route').addEventListener('click', e => {
+  /* Shift anywhere on a row takes the run, whether the gutter or the row
+     itself was hit. The default is stopped so the checkbox does not also
+     toggle itself underneath. */
+  if (e.shiftKey) {
+    const row = e.target.closest('.ritem');
+    const hit = row && (row.querySelector('[data-pick]') || {}).dataset;
+    if (hit && hit.pick) {
+      e.preventDefault();
+      pickRange(hit.pick);
+      return renderRoute();
+    }
+  }
   const focus = e.target.closest('[data-focus]');
   if (focus) {
+    /* a different item's route is a different question — ask it again */
+    state.confirm = null;
     state.focus = focus.dataset.focus;
     renderRoute();
     if (window.innerWidth <= 1020) {
@@ -3739,25 +3885,32 @@ $('#view-route').addEventListener('click', e => {
     noteReopened(setRoute(f, []), item(f).code);
     return renderRoute();
   }
+  /* the button asks; this does it */
   if (e.target.id === 'btn-apply-picked') {
-    const r = routeOf(f).slice();
-    const targets = state.items.filter(i => state.picked[i.id]);
-    let reopened = 0;
-    targets.forEach(i => { reopened += setRoute(i.id, r.slice()); });
-    toast(tp(targets.length, COPY.route.copiedTo_one, COPY.route.copiedTo_many));
-    if (reopened) setTimeout(() => noteReopened(reopened, ''), 1400);
+    state.confirm = { kind: 'copyroute' };
+    return renderRoute();
+  }
+  if (e.target.closest('[data-keep-copy]')) { state.confirm = null; return renderRoute(); }
+  if (e.target.closest('[data-do-copy]')) {
+    state.confirm = null;
+    const done = applyRouteToPicked();
+    toast(tp(done.count, COPY.route.copiedTo_one, COPY.route.copiedTo_many));
+    if (done.reopened) setTimeout(() => noteReopened(done.reopened, ''), 1400);
     return renderRoute();
   }
 });
 
 $('#view-route').addEventListener('change', e => {
   if (e.target.id === 'sel-all') {
-    const on = e.target.checked;
-    state.items.forEach(i => { state.picked[i.id] = on; });
+    toggleSelectAll();
     return renderRoute();
   }
   const p = e.target.closest('[data-pick]');
-  if (p) { state.picked[p.dataset.pick] = p.checked; return renderRoute(); }
+  if (p) {
+    state.picked[p.dataset.pick] = p.checked;
+    pickAnchor = p.dataset.pick;
+    return renderRoute();
+  }
   if (e.target.id === 'copy-from') {
     const from = e.target.value;
     if (!from) return;
@@ -3812,6 +3965,7 @@ $('#view-route').addEventListener('focusout', e => {
 /* Enter in the filter adds whatever it has narrowed to, so a route can be
    typed out — "pow", Enter, "cut", Enter — without reaching for the mouse. */
 $('#view-route').addEventListener('keydown', e => {
+  if (e.key === 'Escape' && state.confirm) { state.confirm = null; return renderRoute(); }
   if (e.target.id !== 'work-filter' || e.key !== 'Enter') return;
   e.preventDefault();
   const q = (state.workFilter || '').trim().toLowerCase();
