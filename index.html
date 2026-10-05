@@ -357,6 +357,19 @@ main{max-width:1320px;margin:0 auto;padding:24px 20px 90px}
 button.tally__chip{cursor:pointer}
 button.tally__chip:hover{border-color:var(--ink);color:var(--ink);background:var(--white)}
 .tally__note{margin-left:2px}
+/* the item's own code and description, edited where the item is worked on.
+   Quiet until touched, so the panel still reads as a heading rather than a form */
+.itemid__code{
+  max-width:190px;font-size:14px;font-weight:700;padding:4px 6px;
+  border-color:transparent;background:transparent;
+}
+.itemid__desc{
+  border-color:transparent;background:transparent;padding:4px 6px;
+  margin:0 0 10px;font-size:13.5px;color:var(--ink-2);
+}
+.itemid__code:hover,.itemid__desc:hover{border-color:var(--rule-2);background:var(--white)}
+.itemid__code:focus,.itemid__desc:focus{border-color:var(--blue);background:var(--white)}
+.itemsteps{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:0 0 13px}
 .copyrow select.field{font-family:var(--mono);font-size:12px;padding:6px 8px}
 .copyrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:16px;padding-top:13px;border-top:1px dashed var(--rule-2)}
 .chip__mark{color:var(--go)}
@@ -630,6 +643,10 @@ td.mx__cell{width:62px;background:var(--white)}
 .pill--step{border-style:dashed;border-color:var(--blue);color:var(--blue)}
 .pill--step::before{content:'▣';margin-right:4px;opacity:.7}
 .pill--step[data-done="1"]{background:var(--blue);border-color:var(--blue);border-style:solid;color:var(--white)}
+/* a pill that leads through to its item */
+.pill--go{cursor:pointer;font:inherit;font-family:var(--mono);font-size:10px;font-weight:700}
+.pill--go:hover{border-color:var(--blue);color:var(--blue)}
+.pill--go[data-done="1"]:hover{background:var(--blue);border-color:var(--blue);color:var(--white)}
 
 /* ---------- the graph ---------- */
 .gwrap{
@@ -1052,7 +1069,14 @@ const COPY = {
     selected: '{n} selected',
     noRouteYet: 'no route yet',
 
-    routeFor: 'Route for',
+    /* Everything about one item lives on this page, so wherever an item is
+       shown elsewhere, its arrow comes here rather than to a part of it. */
+    openItem: 'Open {name}',
+    stepsLabel: 'On these steps',
+    stepsChoose: 'Choose steps',
+    stepsAdd: '+ add',
+    offStep: 'Take {name} off this step',
+
     copyToSelected: 'Copy to {n} selected',
     clearRoute: 'Clear route',
     routeLength_one: '{n} operation, run top to bottom. Drag a row, or use the arrows, to change the order.',
@@ -1188,7 +1212,6 @@ const COPY = {
     cardFinishesTip: 'Comes off the floor after this setup: {list}',
     untickTip: 'Put this back',
     /* the small arrow on each item, which opens that item's route */
-    editRoute: "Open {name}'s route",
     batchDone: '{name} batch marked done',
     putBack: '{n} operations put back on {name}',
     outOfOrder: 'Earlier work has to happen first',
@@ -1659,7 +1682,7 @@ function stripHTML(it, live) {
   const r = routeOf(it.id), p = prog(it.id);
   const head = live
     ? '<button class="strip__code" data-route-item="' + it.id + '" title="' +
-        esc(t(C.editRoute, { name: it.code })) + '">' + esc(it.code) +
+        esc(t(COPY.route.openItem, { name: it.code })) + '">' + esc(it.code) +
         '<span class="strip__go" aria-hidden="true">↗</span></button>'
     : '<span class="strip__code">' + esc(it.code) + '</span>';
   const ops = r.length
@@ -2083,6 +2106,10 @@ function renderDefine() {
             '" aria-label="' + esc(t(C.itemStepsTip, { name: it.code })) + '">▣' +
             (on ? ' ' + on : '') + '</button>'
         : '') +
+      /* through to where everything about this item can be changed at once */
+      '<button class="icon-btn" data-route-item="' + it.id + '" title="' +
+        esc(t(COPY.route.openItem, { name: it.code })) + '" aria-label="' +
+        esc(t(COPY.route.openItem, { name: it.code })) + '">↗</button>' +
       '<button class="icon-btn" data-del-item="' + it.id + '" title="' + esc(C.removeItemTip) + '" aria-label="' + esc(t(C.removeItemLabel, { name: it.code })) + '">✕</button>' +
     '</li>';
   }).join('') : emptyBox(C.itemsEmptyTitle, C.itemsEmptyBody);
@@ -2264,7 +2291,11 @@ function renderRoute() {
 
   /* right: the route sheet for the focused item */
   h += '<div class="panel"><div class="panel__head">' +
-      '<h2>' + esc(C.routeFor) + ' <span class="mono">' + esc(f.code) + '</span></h2>' +
+      /* The item's own name, editable here — this page is where an item is
+         worked on, so arriving at it should not mean going elsewhere to fix
+         the code or the description. */
+      '<input class="field field--mono itemid__code" id="item-code" value="' + esc(f.code) +
+        '" aria-label="' + esc(COPY.define.fieldCode) + '" autocomplete="off">' +
       '<span class="row__spacer"></span>' +
       (picked.length ? '<button class="btn btn--sm" id="btn-apply-picked">' +
         esc(t(C.copyToSelected, { n: picked.length })) + '</button>' : '') +
@@ -2278,6 +2309,21 @@ function renderRoute() {
       (route.length ? '<button class="btn btn--sm btn--ghost" id="btn-clear-route">' +
         esc(C.clearRoute) + '</button>' : '') +
     '</div><div class="panel__body">';
+
+  /* the rest of what an item is: its description, and the assemblies it feeds */
+  h += '<input class="field itemid__desc" id="item-desc" value="' + esc(f.name) +
+    '" placeholder="' + esc(COPY.define.itemNamePlaceholder) +
+    '" aria-label="' + esc(COPY.define.fieldDescription) + '" autocomplete="off">';
+
+  const onSteps = state.steps.filter(s => ownItems(s).indexOf(f.id) > -1);
+  h += '<div class="itemsteps">' +
+    '<span class="eyebrow">' + esc(C.stepsLabel) + '</span>' +
+    '<div class="chips">' +
+      onSteps.map(s => '<button class="chip" data-off-step="' + s.id + '" aria-pressed="true"' +
+        ' title="' + esc(t(C.offStep, { name: s.name })) + '">' + esc(s.name) + '</button>').join('') +
+      '<button class="chip" data-item-steps="' + f.id + '">' +
+        esc(onSteps.length ? C.stepsAdd : C.stepsChoose) + '</button>' +
+    '</div></div>';
 
   h += '<p class="hint" style="margin:0 0 11px">' +
     (route.length ? esc(tp(route.length, C.routeLength_one, C.routeLength_many)) : esc(C.routeEmptyLead)) +
@@ -2690,7 +2736,7 @@ function renderRun() {
       const attrs = done
         ? ' data-untick="' + o.itemId + '" data-idx="' + o.idx + '" aria-label="' + esc(C.untickTip) + '"'
         : (ready ? ' data-tick="' + o.itemId + '" data-idx="' + o.idx + '"' : ' disabled');
-      const goRoute = esc(t(C.editRoute, { name: it.code }));
+      const goRoute = esc(t(COPY.route.openItem, { name: it.code }));
       return '<span class="tag' + (urgent ? ' tag--prio' : '') + (finished ? ' tag--finished' : '') +
         '" data-s="' + (done ? 'done' : (ready ? 'ready' : 'wait')) +
         '" data-strip="' + o.itemId + '">' +
@@ -2973,8 +3019,10 @@ function renderGraph() {
         : t(C.nodeWaiting, { done: dn, total: tot })) + '</div>' +
       (gparts && own.length
         ? '<div class="gnode__parts">' + own.map(id =>
-            '<span class="pill" data-done="' + (itemDone(id) ? 1 : 0) + '">' +
-            esc(item(id).code) + '</span>').join('') + '</div>'
+            '<button class="pill pill--go" data-route-item="' + id + '" data-done="' +
+            (itemDone(id) ? 1 : 0) + '" title="' +
+            esc(t(COPY.route.openItem, { name: item(id).code })) + '">' +
+            esc(item(id).code) + '</button>').join('') + '</div>'
         : '') +
     '</div>';
   }).join('');
@@ -2993,8 +3041,10 @@ function renderGraph() {
     h += '<div class="gloose"><div class="eyebrow">' + esc(C.looseHeading) + '</div>' +
       '<p class="hint" style="margin:2px 0 7px">' + esc(C.looseBody) + '</p>' +
       '<div class="stepitem__items">' + loose.map(i =>
-        '<span class="pill" data-done="' + (itemDone(i.id) ? 1 : 0) + '">' +
-        esc(i.code) + '</span>').join('') + '</div></div>';
+        '<button class="pill pill--go" data-route-item="' + i.id + '" data-done="' +
+        (itemDone(i.id) ? 1 : 0) + '" title="' +
+        esc(t(COPY.route.openItem, { name: i.code })) + '">' + esc(i.code) + '</button>').join('') +
+      '</div></div>';
   }
 
   host.innerHTML = h;
@@ -3513,6 +3563,12 @@ $('#view-define').addEventListener('focusout', () => {
 
 $('#view-define').addEventListener('click', e => {
   const t = e.target;
+  const go2item = t.closest('[data-route-item]');
+  if (go2item) {
+    state.focus = go2item.dataset.routeItem;
+    focusPending = true;
+    return go('route');
+  }
   if (t.closest('[data-keep]')) { state.confirm = null; return renderDefine(); }
   if (t.closest('[data-do-del]')) { return doDelete(state.confirm.kind, state.confirm.id); }
   if (t.closest('[data-cancel-edit]')) { state.edit = null; return renderDefine(); }
@@ -3648,6 +3704,13 @@ $('#view-route').addEventListener('click', e => {
     if (repeat) toast(t(COPY.route.repeatedOp, { name: workName(w) }));
     return;
   }
+  const off = e.target.closest('[data-off-step]');
+  if (off) {
+    toggleStepItem(off.dataset.offStep, state.focus);
+    return renderRoute();
+  }
+  const pick = e.target.closest('[data-item-steps]');
+  if (pick) return openPicker(itemStepsPicker(pick.dataset.itemSteps));
   if (e.target.id === 'btn-next-bare') {
     focusNextBare();
     return renderRoute();
@@ -3685,11 +3748,45 @@ $('#view-route').addEventListener('change', e => {
   }
 });
 
+/* The code and description are edited in place. Typing writes straight through
+   and keeps the row on the left in step by hand — a redraw on every keystroke
+   would take the focus out of the field being typed into. */
 $('#view-route').addEventListener('input', e => {
+  if (e.target.id === 'item-code' || e.target.id === 'item-desc') {
+    const it = item(state.focus);
+    if (!it) return;
+    if (e.target.id === 'item-code') it.code = e.target.value;
+    else it.name = e.target.value;
+    persist();
+    const row = $('#route-body .ritem[aria-current="true"]');
+    if (row) {
+      const c = row.querySelector('.ritem__code'), n = row.querySelector('.ritem__nm');
+      if (c) c.textContent = it.code;
+      if (n) n.textContent = it.name;
+    }
+    return;
+  }
   if (e.target.id !== 'work-filter') return;
   state.workFilter = e.target.value;
   const pal = $('#work-palette');
   if (pal) pal.innerHTML = paletteHTML(routeOf(state.focus));
+});
+
+/* An item with no code cannot be picked out of a list, so a field emptied and
+   then left is put back to whatever it held on arrival. */
+function keepCode(id, fallback) {
+  const it = item(id);
+  if (it && !String(it.code).trim()) it.code = fallback;
+}
+let codeBefore = '';
+$('#view-route').addEventListener('focusin', e => {
+  if (e.target.id === 'item-code') codeBefore = (item(state.focus) || {}).code || '';
+});
+$('#view-route').addEventListener('focusout', e => {
+  if (e.target.id !== 'item-code' && e.target.id !== 'item-desc') return;
+  if (!item(state.focus)) return;
+  if (e.target.id === 'item-code') keepCode(state.focus, codeBefore);
+  renderRoute();
 });
 
 /* Enter in the filter adds whatever it has narrowed to, so a route can be
@@ -3810,6 +3907,14 @@ let gpan = null, gpanned = false;
 $('#view-graph').addEventListener('click', e => {
   /* a drag that happened to end on something is not a click on it */
   if (gpanned) { gpanned = false; return; }
+  /* a part leads to the item itself, and must be checked before the node it
+     sits inside, or the click would only select that node */
+  const part = e.target.closest('[data-route-item]');
+  if (part) {
+    state.focus = part.dataset.routeItem;
+    focusPending = true;
+    return go('route');
+  }
   if (e.target.closest('[data-graph-parts]')) { gparts = !gparts; return renderGraph(); }
   if (e.target.closest('[data-graph-clear]')) { gsel = null; return renderGraph(); }
   if (e.target.closest('[data-graph-fit]')) { gfitted = false; return renderGraph(); }
