@@ -1242,6 +1242,10 @@ const COPY = {
     nothingBody: 'Steps are what this shows. Add a few on Define, and put one inside another to build the tree up.',
 
     showParts: 'Show parts',
+    /* dims everything that is waiting on a sub-assembly, leaving what could be
+       picked up now */
+    showStartable: 'Startable ({n})',
+    startableTip: 'Steps where everything they are built from is finished — or that are built from no other step.',
     fit: 'Fit',
     zoomIn: 'Zoom in',
     zoomOut: 'Zoom out',
@@ -1490,6 +1494,15 @@ function stepDone(id) {
   ids.forEach(i => { if (!itemDone(i)) all = false; });
   return all;
 }
+/* A step can be started once every sub-assembly it is built from is finished —
+   or straight away, if it is built from no other step. It says nothing about
+   the step's own parts: those are the work you would be starting.
+   "Finished" is stepDone, the one notion of a step being complete, so an empty
+   sub-assembly counts as unfinished and holds its parent back. */
+function stepStartable(id) {
+  return subSteps(step(id)).every(sid => !step(sid) || stepDone(sid));
+}
+
 /* a step cannot end up inside itself */
 function wouldLoop(parentId, childId) {
   if (parentId === childId) return true;
@@ -2954,6 +2967,7 @@ function graphTrace(g, id) {
 let gview = { x: 0, y: 0, k: 1 };
 let gfitted = false;
 let gparts = false;
+let gstart = false;
 let gsel = null;
 
 function renderGraph() {
@@ -2970,7 +2984,10 @@ function renderGraph() {
 
   const g = graphModel();
   const lit = gsel ? graphTrace(g, gsel) : null;
-  const inTrace = id => !lit || id === gsel || lit.has(id);
+  /* Two filters that can both be on. A node survives only what both say, and an
+     edge survives only if both of its ends do. */
+  const shown = id => (!lit || lit.has(id)) && (!gstart || stepStartable(id));
+  const canStart = state.steps.filter(s => stepStartable(s.id)).length;
 
   let h = head;
 
@@ -2978,6 +2995,9 @@ function renderGraph() {
   h += '<div class="toolbar">' +
     '<button class="chip" data-graph-parts aria-pressed="' + gparts + '">' +
       esc(C.showParts) + '</button>' +
+    '<button class="chip" data-graph-startable aria-pressed="' + gstart +
+      '" title="' + esc(C.startableTip) + '">' +
+      esc(t(C.showStartable, { n: canStart })) + '</button>' +
     '<span class="row__spacer"></span>' +
     (gsel && step(gsel)
       ? '<span class="row__ops">' + esc(t(C.tracing, { name: step(gsel).name, n: lit.size })) + '</span>' +
@@ -3007,7 +3027,7 @@ function renderGraph() {
     if (used > 1) meta.push(tp(used, C.usedIn_one, C.usedIn_many));
 
     return '<div class="gnode" data-gnode="' + s.id + '" data-ready="' + (ready ? 1 : 0) + '"' +
-      (s.id === gsel ? ' data-sel="1"' : '') + (inTrace(s.id) ? '' : ' data-dim="1"') +
+      (s.id === gsel ? ' data-sel="1"' : '') + (shown(s.id) ? '' : ' data-dim="1"') +
       ' style="left:' + Math.round(at.x) + 'px;width:' + GNODE_W + 'px">' +
       '<div class="gnode__name" title="' + esc(s.name) + '">' + esc(s.name) + '</div>' +
       '<div class="gnode__meta">' + esc(meta.join(C.nodeSeparator) || C.nodeEmpty) + '</div>' +
@@ -3048,14 +3068,14 @@ function renderGraph() {
   }
 
   host.innerHTML = h;
-  layoutGraph(g, lit);
+  layoutGraph(g, shown);
 }
 
 /* Nodes carry whatever they hold, so their heights vary. They are measured once
    in place, the rows spaced to the tallest in each, and only then are the edges
    drawn — so a line always meets the box it points at, rather than an estimate
    of where the box might be. */
-function layoutGraph(g, lit) {
+function layoutGraph(g, shown) {
   const canvas = $('#graph-canvas'), wrap = $('#graph-wrap');
   if (!canvas || !wrap) return;
   const nodeAt = id => canvas.querySelector('[data-gnode="' + id + '"]');
@@ -3091,7 +3111,7 @@ function layoutGraph(g, lit) {
       if (!to) return;
       const x2 = Math.round(to.x + GNODE_W / 2), y2 = Math.round(rowTop[to.row]);
       const bend = Math.max(16, Math.round((y2 - y1) / 2));
-      const on = !lit || ((lit.has(id) || id === gsel) && (lit.has(k) || k === gsel));
+      const on = shown(id) && shown(k);
       seg.push('<path d="M' + x1 + ' ' + y1 + ' C' + x1 + ' ' + (y1 + bend) +
         ' ' + x2 + ' ' + (y2 - bend) + ' ' + x2 + ' ' + y2 + '"' +
         (on ? '' : ' data-dim="1"') + '/>');
@@ -3183,7 +3203,7 @@ function applyData(d) {
   state.priorityItems = d.priorityItems || [];
   state.picked = {}; state.focus = null; state.edit = null; state.confirm = null; state.workFilter = '';
   pinned = null; planGain = 0;   /* another sheet's plan is not this one's */
-  gsel = null; gfitted = false;  /* nor its graph, nor where it was panned to */
+  gsel = null; gstart = false; gfitted = false;  /* nor its graph, nor where it was panned to */
 }
 
 function loadStore() {
@@ -3916,6 +3936,7 @@ $('#view-graph').addEventListener('click', e => {
     return go('route');
   }
   if (e.target.closest('[data-graph-parts]')) { gparts = !gparts; return renderGraph(); }
+  if (e.target.closest('[data-graph-startable]')) { gstart = !gstart; return renderGraph(); }
   if (e.target.closest('[data-graph-clear]')) { gsel = null; return renderGraph(); }
   if (e.target.closest('[data-graph-fit]')) { gfitted = false; return renderGraph(); }
   const z = e.target.closest('[data-graph-zoom]');
