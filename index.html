@@ -667,6 +667,9 @@ td.mx__cell{width:62px;background:var(--white)}
   position:relative;overflow:hidden;height:66vh;min-height:340px;
   background:var(--panel);border:1px solid var(--rule);border-radius:3px;
   box-shadow:3px 3px 0 rgba(20,24,27,.05);cursor:grab;touch-action:none;
+  /* dragging the canvas must not drag a text selection through the nodes it
+     passes over, wherever the drag started */
+  user-select:none;-webkit-user-select:none;
   background-image:
     linear-gradient(rgba(20,24,27,.05) 1px,transparent 1px),
     linear-gradient(90deg,rgba(20,24,27,.05) 1px,transparent 1px);
@@ -3268,8 +3271,11 @@ function fitGraph(w, h) {
   const wrap = $('#graph-wrap');
   if (!wrap) return;
   const vw = wrap.clientWidth || 900, vh = wrap.clientHeight || 520, pad = 26;
+  /* Never magnified past life size, but shrunk as far as it takes — a floor
+     here would mean a "fit" that does not fit, which is what a few hundred
+     steps across used to get. */
   const k = Math.min(1, (vw - pad * 2) / Math.max(1, w), (vh - pad * 2) / Math.max(1, h));
-  gview.k = Math.max(0.2, k);
+  gview.k = Math.max(GZOOM[0], k);
   gview.x = Math.max(pad, (vw - w * gview.k) / 2);
   gview.y = pad;
 }
@@ -3282,18 +3288,42 @@ function applyGraphView() {
   const z = $('#graph-zoom');
   if (z) z.textContent = t(COPY.graph.zoomLevel, { n: Math.round(gview.k * 100) });
 }
+/* The levels zoom settles on. Fitting the job to the window lands wherever it
+   has to — 73%, say — but every step after that moves to a round number and
+   stays on one, rather than compounding 1.2× onto whatever fit happened to
+   pick and reading 87%, 105%, 126%.
+
+   It runs from 2% to 800% because these graphs get wild: a few hundred steps
+   is thousands of pixels across, and the ends are there to be reachable rather
+   than to stop anybody. The steps widen towards the ends, so crossing the
+   range is a reasonable number of clicks either way. */
+const GZOOM = [
+  0.02, 0.03, 0.05, 0.07, 0.1, 0.15, 0.2, 0.25, 0.33, 0.5, 0.67, 0.75,
+  1, 1.25, 1.5, 2, 2.5, 3, 4, 5, 6, 8
+];
+
 /* zoom about a point, so whatever is under the pointer stays under it */
-function zoomGraph(mult, px, py) {
+function zoomTo(k, px, py) {
   const wrap = $('#graph-wrap');
   if (!wrap) return;
   const r = wrap.getBoundingClientRect();
   const cx = px === undefined ? r.width / 2 : px;
   const cy = py === undefined ? r.height / 2 : py;
-  const k0 = gview.k, k = Math.max(0.2, Math.min(2.5, k0 * mult));
-  gview.x = cx - (cx - gview.x) * (k / k0);
-  gview.y = cy - (cy - gview.y) * (k / k0);
-  gview.k = k;
+  const k0 = gview.k;
+  const next = Math.max(GZOOM[0], Math.min(GZOOM[GZOOM.length - 1], k));
+  gview.x = cx - (cx - gview.x) * (next / k0);
+  gview.y = cy - (cy - gview.y) * (next / k0);
+  gview.k = next;
   applyGraphView();
+}
+/* one rung up or down, from wherever the current scale happens to sit */
+function zoomStep(dir, px, py) {
+  const k0 = gview.k;
+  const k = dir > 0
+    ? GZOOM.filter(z => z > k0 + 1e-6)[0]
+    : GZOOM.filter(z => z < k0 - 1e-6).pop();
+  if (k === undefined) return;        /* already at the end of the ladder */
+  zoomTo(k, px, py);
 }
 
 /* ============================================================
@@ -4094,7 +4124,7 @@ $('#view-graph').addEventListener('click', e => {
   if (e.target.closest('[data-graph-clear]')) { gsel = null; return renderGraph(); }
   if (e.target.closest('[data-graph-fit]')) { gfitted = false; return renderGraph(); }
   const z = e.target.closest('[data-graph-zoom]');
-  if (z) return zoomGraph(Number(z.dataset.graphZoom) > 0 ? 1.2 : 1 / 1.2);
+  if (z) return zoomStep(Number(z.dataset.graphZoom));
   const node = e.target.closest('[data-gnode]');
   if (node) {
     gsel = gsel === node.dataset.gnode ? null : node.dataset.gnode;
@@ -4122,16 +4152,23 @@ $('#view-graph').addEventListener('pointerup', () => {
   gpanned = !!(gpan && gpan.moved);
   gpan = null;
 });
-/* Zoom on ctrl/meta + wheel only. A trackpad pinch arrives as exactly that, so
-   pinching works as expected, while a plain wheel still scrolls the page —
-   swallowing it would trap the reader inside a canvas most of a screen tall. */
+/* The wheel zooms, a rung at a time, about the pointer. A trackpad sends a
+   stream of small deltas where a mouse sends one big one, so they are added up
+   and a rung is taken each time the total crosses a notch — otherwise one
+   two-finger swipe would cross the whole ladder. */
+const GWHEEL_NOTCH = 40;
+let wheelAcc = 0;
 $('#view-graph').addEventListener('wheel', e => {
-  if (!e.ctrlKey && !e.metaKey) return;
   const wrap = e.target.closest && e.target.closest('#graph-wrap');
   if (!wrap) return;
   e.preventDefault();
+  /* deltaY is in pixels, lines or pages depending on the device */
+  wheelAcc += e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1);
+  if (Math.abs(wheelAcc) < GWHEEL_NOTCH) return;
+  const dir = wheelAcc < 0 ? 1 : -1;
+  wheelAcc = 0;
   const r = wrap.getBoundingClientRect();
-  zoomGraph(e.deltaY < 0 ? 1.1 : 1 / 1.1, e.clientX - r.left, e.clientY - r.top);
+  zoomStep(dir, e.clientX - r.left, e.clientY - r.top);
 }, { passive: false });
 
 $('#view-run').addEventListener('toggle', e => {
