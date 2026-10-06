@@ -671,6 +671,19 @@ td.mx__cell{width:62px;background:var(--white)}
 .pill--go:hover{border-color:var(--blue);color:var(--blue)}
 .pill--go[data-done="1"]:hover{background:var(--blue);border-color:var(--blue);color:var(--white)}
 
+/* ---------- the job by work type ---------- */
+/* How big this work type is, and how much of it is done: the bar's length is
+   its share of the longest, and the darker part inside is what is finished. */
+.wbar{
+  display:block;height:6px;margin:5px 0 2px;background:var(--white);
+  border:1px solid var(--rule-2);border-radius:2px;overflow:hidden;
+}
+.wbar > i{display:block;height:100%;background:var(--blue-tint);position:relative}
+.wbar > i > em{display:block;height:100%;background:var(--blue);opacity:.55}
+.ritem[aria-current="true"] .wbar > i{background:var(--blue-tint)}
+.row .strip__ops{flex:none;gap:3px}
+.row .strip__ops .ostep{font-size:10px;padding:3px 5px}
+
 /* ---------- the graph ---------- */
 .gwrap{
   position:relative;overflow:hidden;height:66vh;min-height:340px;
@@ -803,6 +816,7 @@ details.fold > summary:hover{color:var(--ink)}
     <button class="tab" role="tab" data-tab="run" aria-selected="false"><span class="tab__n">03</span><span data-copy="chrome.tabRun"></span></button>
     <!-- no stage number: a view of the job, not a step through it -->
     <button class="tab" role="tab" data-tab="graph" aria-selected="false"><span data-copy="chrome.tabGraph"></span></button>
+    <button class="tab" role="tab" data-tab="work" aria-selected="false"><span data-copy="chrome.tabWork"></span></button>
   </nav>
   <div class="jobbar" id="jobbar">
     <button class="btn btn--ghost btn--sm" id="btn-sheets"><span aria-hidden="true">▤</span> <span data-copy="chrome.libraryButton"></span></button>
@@ -896,6 +910,11 @@ details.fold > summary:hover{color:var(--ink)}
   <section class="view" id="view-graph" role="tabpanel">
     <div id="graph-body"></div>
   </section>
+
+  <!-- =============== WORK TYPES =============== -->
+  <section class="view" id="view-work" role="tabpanel">
+    <div id="work-body"></div>
+  </section>
 </main>
 
 <div class="modal" id="jsonbox" hidden>
@@ -977,7 +996,8 @@ const COPY = {
     tabDefine: 'Define',
     tabRoute: 'Route',
     tabRun: 'Run',
-    tabGraph: 'Graph'
+    tabGraph: 'Graph',
+    tabWork: 'Work'
   },
 
   /* --- stage 01, Define -------------------------------------------------- */
@@ -1318,6 +1338,40 @@ const COPY = {
        than a tree; the count says how many places it is used */
     usedIn_one: 'used in {n} place',
     usedIn_many: 'used in {n} places'
+  },
+
+  /* --- the job seen by work type ----------------------------------------- */
+  work: {
+    eyebrow: 'Work types',
+    heading: 'How much of the job each kind of work accounts for.',
+    intro: 'Pick one to see every item that needs it, and where it falls in that item’s route.',
+
+    nothingTitle: 'Nothing to measure yet',
+    nothingBody: 'Add work types on Define, give items their routes, and this fills in.',
+
+    sortUse: 'Most used',
+    sortDefined: 'As defined',
+    /* {ops} operations, {items} items, {works} work types */
+    tally: '{ops} operations across {works} work types, on {items} items',
+
+    rowOps_one: '{n} op',
+    rowOps_many: '{n} ops',
+    rowItems_one: 'on {n} item',
+    rowItems_many: 'on {n} items',
+    rowShare: '{n}% of the job',
+    rowUnused: 'Not used by anything',
+    rowDone: '{done} done',
+
+    detailHeading: 'Items needing {name}',
+    detailNone: 'Nothing has this on its route yet.',
+    detailRepeat_one: '{n} item needs it more than once',
+    detailRepeat_many: '{n} items need it more than once',
+    detailLeft_one: '{n} still to do',
+    detailLeft_many: '{n} still to do',
+    detailAllDone: 'All of it is done',
+    /* where this work type sits in one item's route: "03 of 06" */
+    atOf: 'of {n}',
+    pickOne: 'Pick a work type on the left.'
   },
 
   /* --- the library ------------------------------------------------------- */
@@ -3364,6 +3418,153 @@ function zoomStep(dir, px, py) {
 }
 
 /* ============================================================
+   The job by work type
+
+   The other pages read down a route or across an assembly. This one reads the
+   other way: for one kind of work, everything that needs it. A route can call
+   for the same work type twice, so operations and items are counted separately
+   — eleven operations across nine items is a different thing from eleven
+   across eleven.
+   ============================================================ */
+function workCensus() {
+  const rows = state.works.map((w, i) => ({
+    id: w.id, name: w.name, order: i,
+    ops: 0, done: 0, repeats: 0, items: []
+  }));
+  const by = new Map(rows.map(r => [r.id, r]));
+  state.items.forEach(it => {
+    const r = routeOf(it.id), p = prog(it.id);
+    /* where this item calls for each work type, in route order */
+    const at = new Map();
+    r.forEach((wid, idx) => {
+      const row = by.get(wid);
+      if (!row) return;
+      row.ops++;
+      if (idx < p) row.done++;
+      if (!at.has(wid)) at.set(wid, []);
+      at.get(wid).push(idx);
+    });
+    at.forEach((idxs, wid) => {
+      const row = by.get(wid);
+      if (!row) return;
+      row.items.push({ id: it.id, at: idxs, len: r.length, prog: p });
+      if (idxs.length > 1) row.repeats++;
+    });
+  });
+  return rows;
+}
+
+let wsel = null;
+let wsort = 'use';
+
+function renderWork() {
+  persist();
+  const C = COPY.work;
+  const host = $('#work-body');
+  const head = '<div class="viewhead"><div class="eyebrow">' + esc(C.eyebrow) + '</div>' +
+    '<h1>' + esc(C.heading) + '</h1><p>' + esc(C.intro) + '</p></div>';
+
+  if (!state.works.length) {
+    host.innerHTML = head + emptyBox(C.nothingTitle, C.nothingBody);
+    return;
+  }
+
+  const rows = workCensus();
+  const total = rows.reduce((n, r) => n + r.ops, 0);
+  const most = rows.reduce((n, r) => Math.max(n, r.ops), 0);
+  const order = wsort === 'use'
+    ? rows.slice().sort((a, b) => b.ops - a.ops || a.order - b.order)
+    : rows.slice().sort((a, b) => a.order - b.order);
+  if (!rows.some(r => r.id === wsel)) wsel = (order[0] || {}).id || null;
+  const sel = rows.filter(r => r.id === wsel)[0] || null;
+
+  let h = head;
+  h += '<div class="toolbar">' +
+    '<button class="chip" data-wsort="use" aria-pressed="' + (wsort === 'use') + '">' +
+      esc(C.sortUse) + '</button>' +
+    '<button class="chip" data-wsort="defined" aria-pressed="' + (wsort === 'defined') + '">' +
+      esc(C.sortDefined) + '</button>' +
+    '<span class="row__spacer"></span>' +
+    '<span class="row__ops">' + esc(t(C.tally, {
+      ops: total, works: state.works.length,
+      items: state.items.filter(i => routeOf(i.id).length).length
+    })) + '</span>' +
+  '</div>';
+
+  h += '<div class="routecols">';
+
+  /* left: every work type, longest bar first when sorted by use */
+  h += '<div class="panel"><div class="panel__head"><h2>' + esc(C.eyebrow) + '</h2>' +
+      '<span class="panel__count">' + state.works.length + '</span></div>' +
+    '<div class="panel__body" style="padding:0"><ul class="itemlist">' +
+    order.map(r => {
+      const share = total ? Math.round(r.ops / total * 100) : 0;
+      const width = most ? Math.round(r.ops / most * 100) : 0;
+      const donePct = r.ops ? Math.round(r.done / r.ops * 100) : 0;
+      const meta = r.ops
+        ? [tp(r.ops, C.rowOps_one, C.rowOps_many),
+           tp(r.items.length, C.rowItems_one, C.rowItems_many),
+           t(C.rowShare, { n: share })].join(COPY.run.cardSeparator)
+        : C.rowUnused;
+      return '<li class="ritem" aria-current="' + (r.id === wsel) + '">' +
+        '<button class="ritem__btn" data-wsel="' + r.id + '">' +
+          '<span class="ritem__code">' + esc(r.name) + '</span>' +
+          '<span class="wbar"><i style="width:' + width + '%">' +
+            '<em style="width:' + donePct + '%"></em></i></span>' +
+          '<span class="chain">' + esc(meta) +
+            (r.done ? esc(COPY.run.cardSeparator + t(C.rowDone, { done: r.done })) : '') +
+          '</span>' +
+        '</button>' +
+      '</li>';
+    }).join('') + '</ul></div></div>';
+
+  /* right: what that work type is actually on */
+  h += '<div class="panel"><div class="panel__head">' +
+      '<h2>' + esc(sel ? t(C.detailHeading, { name: sel.name }) : C.pickOne) + '</h2>' +
+      '<span class="panel__count">' + (sel ? sel.items.length : 0) + '</span>' +
+    '</div><div class="panel__body">';
+
+  if (!sel || !sel.items.length) {
+    h += emptyBox(C.nothingTitle, sel ? C.detailNone : C.pickOne);
+  } else {
+    const left = sel.ops - sel.done;
+    const notes = [left ? tp(left, C.detailLeft_one, C.detailLeft_many) : C.detailAllDone];
+    if (sel.repeats) notes.push(tp(sel.repeats, C.detailRepeat_one, C.detailRepeat_many));
+    h += '<p class="hint" style="margin:0 0 11px">' +
+      esc(notes.join(COPY.run.cardSeparator)) + '</p>';
+
+    /* code order, as every other list of items on the run page is */
+    const codeOf = {};
+    state.items.forEach(i => { codeOf[i.id] = i.code || ''; });
+    const shown = sel.items.slice().sort((a, b) =>
+      codeOrder.compare(codeOf[a.id] || '', codeOf[b.id] || ''));
+
+    h += '<ul class="list">' + shown.map(row => {
+      const it = item(row.id);
+      if (!it) return '';
+      return '<li class="row">' +
+        '<button class="rowtext" data-route-item="' + row.id + '" title="' +
+          esc(t(COPY.route.openItem, { name: it.code })) + '">' +
+          '<span class="row__code">' + esc(it.code) + '</span>' +
+          '<span class="row__name">' + esc(it.name) + '</span>' +
+        '</button>' +
+        '<span class="row__spacer"></span>' +
+        /* where it falls in that item's route, and whether it is done yet */
+        '<span class="strip__ops">' + row.at.map(idx => {
+          const s = idx < row.prog ? 'done' : (idx === row.prog ? 'now' : 'wait');
+          return '<span class="ostep" data-s="' + s + '">' +
+            String(idx + 1).padStart(2, '0') + (s === 'done' ? ' ✓' : '') + '</span>';
+        }).join('') + '</span>' +
+        '<span class="row__ops">' + esc(t(C.atOf, { n: row.len })) + '</span>' +
+      '</li>';
+    }).join('') + '</ul>';
+  }
+  h += '</div></div></div>';
+
+  host.innerHTML = h;
+}
+
+/* ============================================================
    The library — runsheets kept in this browser's local storage.
    One key holds every sheet; the open one is written back whenever
    something about it actually changes.
@@ -3403,6 +3604,7 @@ function applyData(d) {
   state.picked = {}; state.focus = null; state.edit = null; state.confirm = null; state.workFilter = '';
   pinned = null; planGain = 0;   /* another sheet's plan is not this one's */
   gsel = null; gstart = false; gfitted = false;  /* nor its graph, nor where it was panned to */
+  wsel = null;                                   /* nor which work type was being looked at */
 }
 
 function loadStore() {
@@ -3647,6 +3849,7 @@ function render() {
   if (state.tab === 'route')  renderRoute();
   if (state.tab === 'run')    renderRun();
   if (state.tab === 'graph')  renderGraph();
+  if (state.tab === 'work')   renderWork();
   if (state.tab === 'sheets') renderSheets();
 }
 function go(tab) {
@@ -4143,6 +4346,20 @@ $('#view-run').addEventListener('click', e => {
     return;
   }
 });
+/* -- work types -- */
+$('#view-work').addEventListener('click', e => {
+  const jump = e.target.closest('[data-route-item]');
+  if (jump) {
+    state.focus = jump.dataset.routeItem;
+    focusPending = true;
+    return go('route');
+  }
+  const sort = e.target.closest('[data-wsort]');
+  if (sort) { wsort = sort.dataset.wsort; return renderWork(); }
+  const pick = e.target.closest('[data-wsel]');
+  if (pick) { wsel = pick.dataset.wsel; return renderWork(); }
+});
+
 /* -- graph -- */
 let gpan = null, gpanned = false;
 $('#view-graph').addEventListener('click', e => {
