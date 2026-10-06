@@ -621,6 +621,15 @@ td.mx__cell{width:62px;background:var(--white)}
 .tip--card::after{display:none}
 .tip--card .strip{grid-template-columns:1fr;gap:6px;padding:0;border-bottom:0}
 .tip--card .strip__id{flex-direction:row;align-items:baseline;gap:7px;flex-wrap:wrap}
+.tip--card .strip__steps{display:flex;flex-wrap:wrap;align-items:center;gap:5px}
+/* finished or how far through, said plainly rather than left to be counted
+   off the operations below */
+.strip__state{
+  font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--ink-2);white-space:nowrap;
+  border:1px solid var(--rule-2);border-radius:2px;padding:2px 5px;
+}
+.strip__state[data-done="1"]{color:var(--go);border-color:var(--go);background:var(--go-tint)}
 .tip--card .mx__nm{white-space:normal;overflow:visible}
 .tip--card .ostep{cursor:default}
 .tag[data-s="ready"]{border-color:var(--ink)}
@@ -1264,7 +1273,11 @@ const COPY = {
     legendNow: 'next up',
     legendWaiting: 'waiting',
     legendHint: 'click to tick work off, or to put it back',
-    stripNoRoute: 'No route — counts as finished'
+    stripNoRoute: 'No route — counts as finished',
+    /* only on the hover panel, which has the room for them */
+    stripFinished: 'Finished',
+    stripLeft: '{done} of {total} done',
+    stripNoSteps: 'On no step'
   },
 
   /* --- the graph, a view of how the assemblies fit together -------------- */
@@ -1744,9 +1757,26 @@ function stripHTML(it, live) {
           : '<span class="ostep" data-s="' + s + '">' + body + '</span>';
       }).join('')
     : '<span class="hint" style="margin:0">' + esc(C.stripNoRoute) + '</span>';
+
+  /* The hover panel carries what the fold has no room for: whether the part is
+     done, and which assemblies it belongs to. The fold is one row per item over
+     a few hundred items, so it stays as narrow as it can. */
+  const state_ = live ? '' :
+    '<span class="strip__state" data-done="' + (itemDone(it.id) ? 1 : 0) + '">' +
+      esc(itemDone(it.id) ? C.stripFinished : t(C.stripLeft, { done: p, total: r.length })) +
+    '</span>';
+  const on = live ? [] : state.steps.filter(s => ownItems(s).indexOf(it.id) > -1);
+  const steps = live ? '' :
+    '<div class="strip__steps"><span class="eyebrow">' +
+      esc(on.length ? COPY.route.stepsLabel : C.stripNoSteps) + '</span>' +
+      /* each one also says whether that assembly is clear, as the rail does */
+      on.map(s => '<span class="pill" data-done="' + (stepDone(s.id) ? 1 : 0) + '">' +
+        esc(s.name) + '</span>').join('') +
+    '</div>';
+
   return '<div class="strip"><div class="strip__id">' + head +
-      '<span class="mx__nm">' + esc(it.name) + '</span>' +
-    '</div><div class="strip__ops">' + ops + '</div></div>';
+      '<span class="mx__nm">' + esc(it.name) + '</span>' + state_ +
+    '</div><div class="strip__ops">' + ops + '</div>' + steps + '</div>';
 }
 /* the order the run page groups its cards in: what you can do with them */
 const CARD_RANK = { done: 0, ready: 1, partial: 2, blocked: 3 };
