@@ -1317,6 +1317,10 @@ const COPY = {
     showStartable: 'Startable ({n})',
     startableTip: 'Steps where everything they are built from is finished — or that are built from no other step.',
     fit: 'Fit',
+    mermaid: 'Mermaid',
+    mermaidTitle: 'This graph as Mermaid',
+    mermaidHint: 'For anything that draws Mermaid. What is on screen is what comes out: parts are in it when they are shown, and so is the startable marking.',
+
     zoomIn: 'Zoom in',
     zoomOut: 'Zoom out',
     zoomLevel: '{n}%',
@@ -3189,6 +3193,57 @@ function graphTrace(g, id) {
   return out;
 }
 
+/* ---- the same graph, as Mermaid, to be looked at somewhere else ----------
+   Ids are made up rather than the app's own, which are random strings nobody
+   wants to read. Labels are escaped the way Mermaid wants — it has no backslash
+   escape, so a quote has to become an entity, and a # has to be dealt with
+   first or it would eat the entity that follows. */
+function mermaidLabel(s) {
+  return String(s == null ? '' : s)
+    .replace(/#/g, '#35;')
+    .replace(/"/g, '#quot;')
+    .replace(/[\r\n]+/g, ' ');
+}
+/* What is drawn is what is exported: parts come along when they are shown, and
+   so does the startable marking when it is on. Nodes already finished are
+   marked either way, as they are on the page. */
+function mermaidGraph() {
+  const lines = ['flowchart TD'];
+  const sid = new Map(state.steps.map((s, i) => [s.id, 'S' + (i + 1)]));
+  const iid = new Map(state.items.map((it, i) => [it.id, 'P' + (i + 1)]));
+  const clear = [], startable = [];
+
+  state.steps.forEach(s => {
+    lines.push('  ' + sid.get(s.id) + '["' + mermaidLabel(s.name) + '"]');
+    if (stepDone(s.id)) clear.push(sid.get(s.id));
+    else if (gstart && stepStartable(s.id)) startable.push(sid.get(s.id));
+  });
+  state.steps.forEach(s => subSteps(s).forEach(k => {
+    if (sid.has(k)) lines.push('  ' + sid.get(s.id) + ' --> ' + sid.get(k));
+  }));
+
+  if (gparts) {
+    state.items.forEach(it => {
+      lines.push('  ' + iid.get(it.id) + '("' + mermaidLabel(it.code) + '")');
+      if (itemDone(it.id)) clear.push(iid.get(it.id));
+    });
+    state.steps.forEach(s => ownItems(s).forEach(x => {
+      if (iid.has(x)) lines.push('  ' + sid.get(s.id) + ' --> ' + iid.get(x));
+    }));
+  }
+
+  /* the page's own colours, so a render looks like what it came from */
+  if (clear.length) {
+    lines.push('  classDef clear fill:#D7E7DD,stroke:#1C6E48,color:#14181B');
+    lines.push('  class ' + clear.join(',') + ' clear');
+  }
+  if (startable.length) {
+    lines.push('  classDef startable fill:#FBFBF9,stroke:#1C6E48,stroke-width:3px,color:#14181B');
+    lines.push('  class ' + startable.join(',') + ' startable');
+  }
+  return lines.join('\n');
+}
+
 let gview = { x: 0, y: 0, k: 1 };
 let gfitted = false;
 let gparts = false;
@@ -3235,6 +3290,7 @@ function renderGraph() {
     '<span class="row__ops" id="graph-zoom">' + esc(t(C.zoomLevel, { n: Math.round(gview.k * 100) })) + '</span>' +
     '<button class="icon-btn" data-graph-zoom="1" title="' + esc(C.zoomIn) + '" aria-label="' + esc(C.zoomIn) + '">+</button>' +
     '<button class="btn btn--sm btn--ghost" data-graph-fit>' + esc(C.fit) + '</button>' +
+    '<button class="btn btn--sm btn--ghost" data-graph-mermaid>' + esc(C.mermaid) + '</button>' +
   '</div>';
 
   /* the nodes, positioned across but not yet down — the rows are spaced once
@@ -4441,6 +4497,7 @@ $('#view-graph').addEventListener('click', e => {
   if (e.target.closest('[data-graph-startable]')) { gstart = !gstart; return renderGraph(); }
   if (e.target.closest('[data-graph-clear]')) { gsel = null; return renderGraph(); }
   if (e.target.closest('[data-graph-fit]')) { gfitted = false; return renderGraph(); }
+  if (e.target.closest('[data-graph-mermaid]')) return openJsonBox('mermaid');
   const z = e.target.closest('[data-graph-zoom]');
   if (z) return zoomStep(Number(z.dataset.graphZoom));
   const node = e.target.closest('[data-gnode]');
@@ -4517,21 +4574,26 @@ function saveFile(sheet) {
 }
 /* ---- the JSON box: the same save and open, by copy and paste ---- */
 let jsonMode = null;
+/* Three things come through this box, and only one of them is pasted in. */
 function openJsonBox(mode, sheet) {
-  const C = COPY.json;
+  const C = COPY.json, G = COPY.graph;
   jsonMode = mode;
   const box = $('#jsonbox'), area = $('#json-text');
-  $('#json-title').textContent = mode === 'copy' ? C.copyTitle : C.pasteTitle;
-  $('#json-hint').textContent = mode === 'copy' ? C.copyHint : C.pasteHint;
-  $('#json-action').textContent = mode === 'copy' ? C.copyAction : C.pasteAction;
+  const out = mode !== 'paste';
+  $('#json-title').textContent =
+    mode === 'paste' ? C.pasteTitle : mode === 'mermaid' ? G.mermaidTitle : C.copyTitle;
+  $('#json-hint').textContent =
+    mode === 'paste' ? C.pasteHint : mode === 'mermaid' ? G.mermaidHint : C.copyHint;
+  $('#json-action').textContent = out ? C.copyAction : C.pasteAction;
   $('#json-dismiss').textContent = C.close;
-  area.readOnly = mode === 'copy';
-  area.placeholder = mode === 'copy' ? '' : C.pastePlaceholder;
-  if (mode === 'copy') { persist(); area.value = sheetJSON(sheet || null); }
+  area.readOnly = out;
+  area.placeholder = out ? '' : C.pastePlaceholder;
+  if (mode === 'mermaid') area.value = mermaidGraph();
+  else if (mode === 'copy') { persist(); area.value = sheetJSON(sheet || null); }
   else area.value = '';
   box.hidden = false;
   area.focus();
-  if (mode === 'copy') {
+  if (out) {
     area.setSelectionRange(0, area.value.length);
     area.scrollTop = 0;   /* selecting scrolls to the end; show the top */
   }
@@ -4546,7 +4608,7 @@ function copyJsonOut() {
   const done = () => {
     const btn = $('#json-action');
     btn.textContent = COPY.json.copied;
-    setTimeout(() => { if (jsonMode === 'copy') btn.textContent = COPY.json.copyAction; }, 1400);
+    setTimeout(() => { if (jsonMode !== 'paste' && jsonMode) btn.textContent = COPY.json.copyAction; }, 1400);
   };
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(area.value).then(done, () => toast(COPY.json.copyManual));
@@ -4737,7 +4799,7 @@ $('#btn-paste-json').addEventListener('click', () => openJsonBox('paste'));
 $('#json-close').addEventListener('click', closeJsonBox);
 $('#json-dismiss').addEventListener('click', closeJsonBox);
 $('#json-action').addEventListener('click', () => {
-  if (jsonMode === 'copy') copyJsonOut(); else openJsonIn();
+  if (jsonMode === 'paste') openJsonIn(); else copyJsonOut();
 });
 $('#jsonbox').addEventListener('click', e => { if (e.target.id === 'jsonbox') closeJsonBox(); });
 document.addEventListener('keydown', e => {
