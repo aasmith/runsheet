@@ -982,6 +982,9 @@ const COPY = {
   /* --- the app itself, and the bar across the top ----------------------- */
   app: {
     documentTitle: 'Runsheet — batch planner & work tracker',
+    /* the window title, and so each entry in the browser's history list */
+    pageTitle: '{tab} · {name} — {app}',
+    pageTitleNoSheet: '{tab} — {app}',
     brandName: 'Runsheet',
     tagline: 'batch planner & work tracker',
     taglineLibrary: 'library'
@@ -3827,6 +3830,7 @@ function renderChrome() {
   $('#topbar-title').classList.toggle('crumb--none', !open);
   $('#back-title').textContent = name;
   $('#btn-back').style.display = open ? '' : 'none';
+  setPageTitle();
 }
 
 function render() {
@@ -3852,12 +3856,72 @@ function render() {
   if (state.tab === 'work')   renderWork();
   if (state.tab === 'sheets') renderSheets();
 }
+/* ============================================================
+   Which page the address bar names
+
+   In the fragment, not the path. This file gets served from wherever it is
+   put — a static host with no rewriting, or straight off a disk — and a path
+   would 404 on reload and do nothing at all over file://. A fragment survives
+   both, and never reaches a server either way.
+
+   pushState rather than setting the hash, so each page is a real history entry
+   with its own title, and back goes where it came from. Some browsers refuse
+   pushState over file://, so that falls back to the hash.
+   ============================================================ */
+const TABS = ['define', 'route', 'run', 'graph', 'work', 'sheets'];
+const TAB_LABEL = () => ({
+  define: COPY.chrome.tabDefine, route: COPY.chrome.tabRoute,
+  run: COPY.chrome.tabRun, graph: COPY.chrome.tabGraph,
+  work: COPY.chrome.tabWork, sheets: COPY.chrome.libraryButton
+});
+
+function tabFromHash() {
+  const h = String(location.hash || '').replace(/^#\/?/, '').toLowerCase();
+  return TABS.indexOf(h) > -1 ? h : null;
+}
+function pushTab(tab, replace) {
+  const url = '#' + tab;
+  if (String(location.hash) === url) return;   /* also stops the fallback looping */
+  try {
+    if (replace) history.replaceState({ tab: tab }, '', url);
+    else history.pushState({ tab: tab }, '', url);
+  } catch (err) {
+    location.hash = tab;
+  }
+}
+/* the browser's own history list, and its window title, saying which page */
+function setPageTitle() {
+  const C = COPY.app;
+  const tab = TAB_LABEL()[state.tab] || '';
+  const name = currentSheet() ? (state.title || COPY.chrome.untitledSheet) : '';
+  document.title = name
+    ? t(C.pageTitle, { tab: tab, name: name, app: C.brandName })
+    : t(C.pageTitleNoSheet, { tab: tab, app: C.brandName });
+}
+
+/* Arriving from back, forward, or someone editing the address bar. popstate
+   covers the first two and hashchange the last; both land here, and going
+   nowhere new is ignored so the two cannot fight over one move. */
+let fromHistory = false;
+function readURL() {
+  const tab = tabFromHash();
+  if (!tab || tab === state.tab) return;
+  fromHistory = true;
+  go(tab);
+  fromHistory = false;
+}
+window.addEventListener('popstate', readURL);
+window.addEventListener('hashchange', readURL);
+
 function go(tab) {
   if (tab !== 'sheets' && !currentSheet()) tab = 'sheets';
   if (tab !== 'sheets') state.stage = tab;
   /* arriving at the graph, put the whole job in view again */
   if (tab === 'graph') gfitted = false;
-  state.tab = tab; state.confirm = null; state.edit = null; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  state.tab = tab; state.confirm = null; state.edit = null; render();
+  /* after resolving, since the asked-for page is not always the one shown */
+  if (!fromHistory) pushTab(tab);
+  window.scrollTo({ top: 0, behavior: 'smooth' }); }
 
 /* ============================================================
    Events
@@ -4899,8 +4963,20 @@ if (!currentSheet()) {
   applyData(s ? s.data : emptyData());
   lastSaved = null;
   if (!s || !(state.items.length || state.works.length)) state.tab = 'sheets';
+
+  /* A link or a bookmark names the page, and overrides where the last session
+     left off. What it asks for is not always what can be shown — there may be
+     no runsheet open — so the address bar is then corrected to match, by
+     replacing rather than pushing, which would leave a dead entry behind. */
+  const asked = tabFromHash();
+  if (asked) {
+    state.tab = asked;
+    if (asked !== 'sheets') state.stage = asked;
+  }
+  if (state.tab !== 'sheets' && !currentSheet()) state.tab = 'sheets';
 })();
 render();
+pushTab(state.tab, true);
 
 </script>
 </body>
